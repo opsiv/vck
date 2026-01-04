@@ -15,7 +15,7 @@ import io.github.aakira.napier.Napier
 import kotlin.collections.component1
 import kotlin.collections.component2
 
-internal suspend fun CreatePresentationResult.DeviceResponse.Companion.build(
+suspend fun CreatePresentationResult.DeviceResponse.Companion.build(
     request: PresentationRequestParameters,
     credentialsAndMeta: Map<SubjectCredentialStore.StoreEntry.Iso, IsoPresentationMeta>,
 ): CreatePresentationResult.DeviceResponse {
@@ -73,7 +73,7 @@ private suspend fun createPlainDocuments(
         Document.build(request, credential, requestedClaims)
     }
 
-internal suspend fun Document.Companion.build(
+suspend fun Document.Companion.build(
     request: PresentationRequestParameters,
     credential: SubjectCredentialStore.StoreEntry.Iso,
     requestedClaims: Collection<NormalizedJsonPath>

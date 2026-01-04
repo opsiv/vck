@@ -1,6 +1,7 @@
 import org.tomlj.Toml
 import org.tomlj.TomlParseResult
 import java.io.FileInputStream
+
 pluginManagement {
     includeBuild("conventions-vclib")
     repositories {
@@ -30,6 +31,7 @@ include(":csc-data-classes")
 include(":vck")
 include(":vck-openid")
 include(":vck-openid-ktor")
+include("longfellowzk")
 
 
 buildscript {
@@ -44,7 +46,7 @@ buildscript {
 
 val versionCatalogSource: TomlParseResult by lazy {
 
-        Toml.parse(FileInputStream(rootProject.projectDir.absolutePath + ("/gradle/libs.versions.toml")))
+    Toml.parse(FileInputStream(rootProject.projectDir.absolutePath + ("/gradle/libs.versions.toml")))
 
 }
 
@@ -63,3 +65,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
+
+include("longfellowzk")

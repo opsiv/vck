@@ -26,6 +26,8 @@ class VcLibVersions(private val project: Project) {
     val eupidcredential get() = versionOf("eupid")
     val mdl get() = versionOf("mdl")
 
+    val jna get() = versionOf("jna")
+
     val Jvm = JvmVersions()
 
     inner class JvmVersions {

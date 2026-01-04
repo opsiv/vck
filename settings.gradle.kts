@@ -32,6 +32,7 @@ include(":vck")
 include(":vck-openid")
 include(":vck-openid-ktor")
 include("longfellowzk")
+include(":longfellowzk-openid-ktor")
 
 
 buildscript {
@@ -67,3 +68,4 @@ dependencyResolutionManagement {
 }
 
 include("longfellowzk")
+include("longfellowzk-openid-ktor")

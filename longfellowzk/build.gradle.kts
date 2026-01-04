@@ -4,6 +4,7 @@ import org.gradle.kotlin.dsl.provideDelegate
 import at.asitplus.gradle.VcLibVersions
 import at.asitplus.gradle.androidJvmMain
 import at.asitplus.gradle.commonImplementationDependencies
+import at.asitplus.gradle.configureLongfellowIosLinking
 import at.asitplus.gradle.vckAndroid
 
 plugins {
@@ -18,6 +19,7 @@ kotlin {
         iosArm64()
         iosSimulatorArm64()
         iosX64()
+        configureLongfellowIosLinking(isLongfellowZkModule = true)
     }
     sourceSets {
 

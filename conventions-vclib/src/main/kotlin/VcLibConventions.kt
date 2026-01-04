@@ -194,10 +194,10 @@ private fun isValidAndroidSdk(sdk: File): Boolean {
 
 /**
  * Configures iOS targets to link against the Longfellow native library.
- * Needed for modules that depend on longfellow-zk (which uses cinterop to call the native library).
+ * Needed for modules that depend on longfellowzk (which uses cinterop to call the native library).
  *
- * @param isLongfellowZkModule true for longfellow-zk module itself (configures cinterop + uses projectDir),
- * false for dependent modules (only linker opts, uses rootProject/longfellow-zk path)
+ * @param isLongfellowZkModule true for longfellowzk module itself (configures cinterop + uses projectDir),
+ * false for dependent modules (only linker opts, uses rootProject/longfellowzk path)
  */
 fun KotlinMultiplatformExtension.configureLongfellowIosLinking(isLongfellowZkModule: Boolean = false) {
     val iosTargets = targets.filter { it.name.startsWith("ios") }
@@ -208,7 +208,7 @@ fun KotlinMultiplatformExtension.configureLongfellowIosLinking(isLongfellowZkMod
         val basePath = if (isLongfellowZkModule) {
             "${project.projectDir}/src/iosMain/cinterop/libs/$arch"
         } else {
-            "${project.rootProject.projectDir}/longfellow-zk/src/iosMain/cinterop/libs/$arch"
+            "${project.rootProject.projectDir}/longfellowzk/src/iosMain/cinterop/libs/$arch"
         }
 
         val nativeTarget = target as org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget

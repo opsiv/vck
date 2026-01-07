@@ -11,6 +11,10 @@ plugins {
     id("at.asitplus.gradle.vclib-conventions")
 }
 
+
+val artifactVersion: String by extra
+group = "at.asitplus.wallet"
+version = artifactVersion
 val disableAppleTargets by envExtra
 kotlin {
     jvm()
@@ -30,9 +34,17 @@ kotlin {
             }
         }
 
-        androidJvmMain.dependencies {
+        androidMain.dependencies {
+            implementation("net.java.dev.jna:jna:${VcLibVersions.jna}@aar")
+        }
+
+        jvmMain.dependencies {
             implementation("net.java.dev.jna:jna:${VcLibVersions.jna}")
             implementation("net.java.dev.jna:jna-platform:${VcLibVersions.jna}")
+        }
+
+        androidJvmMain.dependencies {
+
         }
 
         commonTest {

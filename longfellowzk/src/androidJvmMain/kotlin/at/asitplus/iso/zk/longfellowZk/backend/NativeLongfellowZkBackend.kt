@@ -113,6 +113,8 @@ object JnaLongfellowZkBackend: LongfellowZkBackend {
         val isAndroid = System.getProperty("java.vendor")?.lowercase()?.contains("android") == true
         if (isAndroid) return defaultName
 
+        // TODO: Loading the class with [getJNaLibraryPath] this might break in actual projects. This function should be
+        //  replaced with a function that reliably gets the library on JVM targets
         val os = System.getProperty("os.name").lowercase().replace("\\s+".toRegex(), "")
         val arch = System.getProperty("os.arch").lowercase().replace("\\s+".toRegex(), "")
         val suffix = when {
@@ -120,6 +122,7 @@ object JnaLongfellowZkBackend: LongfellowZkBackend {
             os.contains("win") -> "dll"
             else -> "so"
         }
+
         return "/native/${os}-${arch}/${defaultName}.${suffix}"
     }
 

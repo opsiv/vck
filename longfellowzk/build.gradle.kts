@@ -2,9 +2,9 @@ import at.asitplus.gradle.envExtra
 import at.asitplus.gradle.kotest
 import org.gradle.kotlin.dsl.provideDelegate
 import at.asitplus.gradle.VcLibVersions
-import at.asitplus.gradle.androidJvmMain
 import at.asitplus.gradle.commonImplementationDependencies
 import at.asitplus.gradle.configureLongfellowIosLinking
+import at.asitplus.gradle.ktor
 import at.asitplus.gradle.vckAndroid
 
 plugins {
@@ -43,19 +43,16 @@ kotlin {
             implementation("net.java.dev.jna:jna-platform:${VcLibVersions.jna}")
         }
 
-        androidJvmMain.dependencies {
-
-        }
 
         commonTest {
             dependencies {
+                api(project(":vck-openid-ktor"))
                 implementation("at.asitplus.wallet:eupidcredential:${VcLibVersions.eupidcredential}")
                 implementation("at.asitplus.wallet:mobiledrivinglicence:${VcLibVersions.mdl}")
+                implementation(ktor("client-mock"))
                 implementation(kotest("assertions-core"))
             }
         }
-
-        iosTest
     }
 }
 

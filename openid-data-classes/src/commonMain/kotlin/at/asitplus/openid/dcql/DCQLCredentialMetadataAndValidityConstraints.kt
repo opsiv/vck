@@ -20,6 +20,12 @@ sealed interface DCQLCredentialMetadataAndValidityConstraints {
             is DCQLSdJwtCredential,
             is DCQLVcJwsCredential -> KmmResult.failure(IllegalArgumentException("Incompatible credential format `${credential.format}` for metadata constraints $this"))
         }
+        is DCQLIsoMdocZkCredentialMetadataAndValidityConstraints -> when (credential) {
+            is DCQLIsoMdocCredential -> validateCredentialConformance(credential)
+
+            is DCQLSdJwtCredential,
+            is DCQLVcJwsCredential -> KmmResult.failure(IllegalArgumentException("Incompatible credential format `${credential.format}` for metadata constraints $this"))
+        }
 
         is DCQLJwtVcCredentialMetadataAndValidityConstraints -> when (credential) {
             is DCQLVcJwsCredential -> validateCredentialConformance(credential)

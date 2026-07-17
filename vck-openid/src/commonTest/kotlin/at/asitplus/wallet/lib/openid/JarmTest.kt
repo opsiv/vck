@@ -69,7 +69,7 @@ val JarmTest by matrixSuite {
                             representation = SD_JWT,
                             attributePaths = setOf(DCQLClaimsPathPointer(CLAIM_GIVEN_NAME))
                         )
-                    ).toPresentationExchangeRequest(),
+                    ).toDCQLRequest(),
                     responseMode = OpenIdConstants.ResponseMode.DirectPostJwt,
                     responseUrl = "https://example.com/${uuid4()}"
                 )

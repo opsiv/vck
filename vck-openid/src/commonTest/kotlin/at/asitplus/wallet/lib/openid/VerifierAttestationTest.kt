@@ -105,10 +105,9 @@ val VerifierAttestationTest by matrixSuite {
 
             verifierOid4vp.validateAuthnResponse(authnResponse.url).getOrThrow()
                 .vpTokenValidationResult.shouldNotBeNull().getOrThrow()
-                .shouldBeInstanceOf<VpTokenValidationResultPresentationExchange>()
-                .inputDescriptorResponseValidations.values.map {
-                    it.getOrThrow()
-                }.shouldBeSingleton().first()
+                .shouldBeInstanceOf<VpTokenValidationResultDCQL>()
+                .credentialQueryResponseValidations.values.flatMap { it.map { it.getOrThrow() } }
+                .shouldBeSingleton().first()
                 .shouldBeInstanceOf<Verifier.VerifyPresentationResult.Success>().apply {
                     vp.freshVerifiableCredentials.shouldNotBeEmpty().map { it.vcJws }.forEach {
                         it.vc.credentialSubject.shouldBeInstanceOf<JsonElement>().also { credentialSubject ->
@@ -147,7 +146,7 @@ val VerifierAttestationTest by matrixSuite {
 private fun requestOptionsAtomicAttribute() = OpenId4VpRequestOptions(
     presentationRequest = CredentialPresentationRequestBuilder(
         RequestOptionsCredential(ConstantIndex.AtomicAttribute2023)
-    ).toPresentationExchangeRequest(),
+    ).toDCQLRequest(),
 )
 
 private suspend fun buildAttestationJwt(

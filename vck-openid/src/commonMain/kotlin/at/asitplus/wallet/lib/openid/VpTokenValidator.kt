@@ -3,9 +3,7 @@ package at.asitplus.wallet.lib.openid
 import at.asitplus.KmmResult
 import at.asitplus.catching
 import at.asitplus.dif.ClaimFormat
-import at.asitplus.dif.PresentationSubmissionDescriptor
 import at.asitplus.iso.DeviceResponse
-import at.asitplus.jsonpath.JsonPath
 import at.asitplus.openid.AuthenticationRequestParameters
 import at.asitplus.openid.CredentialFormatEnum
 import at.asitplus.openid.ResponseParametersFrom
@@ -69,16 +67,21 @@ internal class VpTokenValidator(
             ?: throw IllegalArgumentException("nonce not present in $authnRequest")
         val vpToken = responseParameters.parameters.vpToken
             ?: throw IllegalArgumentException("vp_token not present in ${responseParameters.parameters}")
+        // We do not support mapping "scope" in request to DCQL queries
+        val query = authnRequest.dcqlQuery
+            ?: throw IllegalArgumentException("DCQL Query not present in $authnRequest")
         val clientIdRequired = responseParameters.clientIdRequired
 
-        authnRequest.presentationDefinition?.let {
-            val presentationSubmission = responseParameters.parameters.presentationSubmission?.descriptorMap
-                ?: throw IllegalArgumentException("Presentation Exchange need to present a presentation submission.")
+        val presentation = vpToken.jsonObject.mapKeys {
+            DCQLCredentialQueryIdentifier(it.key)
+        }.mapValues { (credentialQueryId, relatedPresentation) ->
+            val credentialQuery = query.credentialQuery(credentialQueryId)
+                ?: throw IllegalArgumentException("Unknown credential query identifier.")
 
-            val presentation = presentationSubmission.associate { descriptor ->
-                descriptor.id to verifyPresentationResult(
-                    claimFormat = descriptor.format,
-                    relatedPresentation = descriptor.relatedPresentation(vpToken),
+            relatedPresentation.jsonArray.map {
+                verifyPresentationResult(
+                    claimFormat = credentialQuery.format.toClaimFormat(),
+                    relatedPresentation = it.jsonPrimitive,
                     expectedNonce = expectedNonce,
                     input = responseParameters,
                     clientId = authnRequest.clientId,
@@ -86,40 +89,15 @@ internal class VpTokenValidator(
                     transactionData = authnRequest.transactionData,
                     clientIdRequired = clientIdRequired,
                     origin = origin,
+                    requireCryptographicHolderBinding = query.credentialQuery(credentialQueryId)?.requireCryptographicHolderBinding,
                 )
             }
-
-            VpTokenValidationResultPresentationExchange(
-                inputDescriptorResponseValidations = presentation,
-            )
-        } ?: authnRequest.dcqlQuery?.let { query ->
-            val presentation = vpToken.jsonObject.mapKeys {
-                DCQLCredentialQueryIdentifier(it.key)
-            }.mapValues { (credentialQueryId, relatedPresentation) ->
-                val credentialQuery = query.credentialQuery(credentialQueryId)
-                    ?: throw IllegalArgumentException("Unknown credential query identifier.")
-
-                relatedPresentation.jsonArray.map {
-                    verifyPresentationResult(
-                        claimFormat = credentialQuery.format.toClaimFormat(),
-                        relatedPresentation = it.jsonPrimitive,
-                        expectedNonce = expectedNonce,
-                        input = responseParameters,
-                        clientId = authnRequest.clientId,
-                        responseUrl = authnRequest.responseUrl ?: authnRequest.redirectUrlExtracted,
-                        transactionData = authnRequest.transactionData,
-                        clientIdRequired = clientIdRequired,
-                        origin = origin,
-                        requireCryptographicHolderBinding = query.credentialQuery(credentialQueryId)?.requireCryptographicHolderBinding,
-                    )
-                }
-            }
-            val validationResult = DCQLQueryAdapter(query).validateSubmissionRequirements(presentation)
-            VpTokenValidationResultDCQL(
-                credentialQueryResponseValidations = presentation,
-                submissionRequirementsValidationResult = validationResult,
-            )
-        } ?: throw IllegalArgumentException("Unsupported presentation mechanism")
+        }
+        val validationResult = DCQLQueryAdapter(query).validateSubmissionRequirements(presentation)
+        VpTokenValidationResultDCQL(
+            credentialQueryResponseValidations = presentation,
+            submissionRequirementsValidationResult = validationResult,
+        )
     }
 
     private fun DCQLQueryAdapter.validateSubmissionRequirements(
@@ -133,9 +111,6 @@ internal class VpTokenValidator(
 
     private fun DCQLQuery.credentialQuery(id: DCQLCredentialQueryIdentifier) =
         credentials.associateBy { it.id }[id]
-
-    private fun PresentationSubmissionDescriptor.relatedPresentation(vpToken: JsonElement) =
-        JsonPath(cumulativeJsonPath).query(vpToken).first().value
 
     private fun CredentialFormatEnum.toClaimFormat(): ClaimFormat = when (this) {
         CredentialFormatEnum.JWT_VC -> ClaimFormat.JWT_VP
@@ -217,13 +192,3 @@ internal class VpTokenValidator(
     }
 }
 
-private val PresentationSubmissionDescriptor.cumulativeJsonPath: String
-    get() {
-        var cummulativeJsonPath = this.path
-        var descriptorIterator = this.nestedPath
-        while (descriptorIterator != null) {
-            cummulativeJsonPath += descriptorIterator.path.substring(1)
-            descriptorIterator = descriptorIterator.nestedPath
-        }
-        return cummulativeJsonPath
-    }

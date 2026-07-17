@@ -2,7 +2,6 @@ package at.asitplus.wallet.lib.openid
 
 import at.asitplus.KmmResult
 import at.asitplus.catching
-import at.asitplus.dif.PresentationDefinition
 import at.asitplus.openid.AuthenticationRequestParameters
 import at.asitplus.openid.AuthenticationResponseParameters
 import at.asitplus.openid.IdToken
@@ -355,7 +354,6 @@ class OpenId4VpHolder @JvmOverloads constructor(
                 state = request.parameters.state,
                 idToken = idToken?.toString(),
                 vpToken = resultContainer?.vpToken,
-                presentationSubmission = resultContainer?.presentationSubmission,
             )
             AuthenticationResponse.Success(
                 params = parameters
@@ -369,19 +367,22 @@ class OpenId4VpHolder @JvmOverloads constructor(
                 ?.toJsonWebKey()
         }
 
+    // TODO Move to separate class, may be used by Valera also for ISO requests!
+    // TODO Documentation
     suspend fun getMatchingCredentials(
         preparationState: AuthorizationResponsePreparationState,
     ): KmmResult<CredentialMatchingResult<SubjectCredentialStore.StoreEntry>> = catching {
         when (val presentationRequest = preparationState.credentialPresentationRequest) {
-            is CredentialPresentationRequest.DCQLRequest -> holder.matchDCQLQueryAgainstCredentialStoreV2(
-                dcqlQuery = presentationRequest.dcqlQuery,
-                filterByIds = preparationState.request.credentialIds()
-            ).getOrThrow().let {
-                DCQLMatchingResult(
-                    presentationRequest = presentationRequest,
-                    matchingResult = it,
-                )
-            }
+            is CredentialPresentationRequest.DCQLRequest ->
+                holder.matchDCQLQueryAgainstCredentialStoreV2(
+                    dcqlQuery = presentationRequest.dcqlQuery,
+                    filterByIds = preparationState.request.credentialIds()
+                ).getOrThrow().let {
+                    DCQLMatchingResult(
+                        presentationRequest = presentationRequest,
+                        matchingResult = it,
+                    )
+                }
 
             is CredentialPresentationRequest.PresentationExchangeRequest ->
                 holder.matchInputDescriptorsAgainstCredentialStoreV2(
@@ -395,7 +396,7 @@ class OpenId4VpHolder @JvmOverloads constructor(
                     )
                 }
 
-            null -> TODO()
+            else -> TODO()
         }
     }
 
@@ -428,14 +429,8 @@ class OpenId4VpHolder @JvmOverloads constructor(
 
     private suspend fun AuthenticationRequestParameters.loadCredentialRequest(): CredentialPresentationRequest? =
         if (responseType?.contains(VP_TOKEN) == true) {
-            loadPresentationDefinition()?.let { CredentialPresentationRequest.PresentationExchangeRequest(it) }
-                ?: dcqlQuery?.let { CredentialPresentationRequest.DCQLRequest(it) }
+                dcqlQuery?.let { CredentialPresentationRequest.DCQLRequest(it) }
         } else null
-
-    private suspend fun AuthenticationRequestParameters.loadPresentationDefinition(): PresentationDefinition? =
-        presentationDefinition ?: presentationDefinitionUrl
-            ?.let { remoteResourceRetriever(RemoteResourceRetrieverInput(it)) }
-            ?.let { joseCompliantSerializer.decodeFromString(it) }
 
 }
 

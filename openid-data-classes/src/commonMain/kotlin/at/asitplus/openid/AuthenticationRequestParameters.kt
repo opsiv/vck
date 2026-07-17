@@ -145,19 +145,11 @@ data class AuthenticationRequestParameters(
     @SerialName("id_token_type")
     val idTokenType: String? = null,
 
-    /**
-     * OID4VP: A string containing a Presentation Definition JSON object. This parameter MUST be present when
-     * [presentationDefinitionUrl] parameter, or a [scope] value representing a Presentation Definition is not
-     * present.
-     */
+    @Deprecated("Support for Presentation Exchange been removed from OpenID4VP")
     @SerialName("presentation_definition")
     val presentationDefinition: PresentationDefinition? = null,
 
-    /**
-     * OID4VP: A string containing an HTTPS URL pointing to a resource where a Presentation Definition JSON object
-     * can be retrieved. This parameter MUST be present when [presentationDefinition] parameter, or a scope value
-     * representing a Presentation Definition is not present.
-     */
+    @Deprecated("Support for Presentation Exchange been removed from OpenID4VP")
     @SerialName("presentation_definition_uri")
     val presentationDefinitionUrl: String? = null,
 

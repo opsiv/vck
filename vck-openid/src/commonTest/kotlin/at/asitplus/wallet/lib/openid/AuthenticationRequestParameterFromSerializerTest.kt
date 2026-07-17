@@ -42,7 +42,7 @@ val AuthenticationRequestParameterFromSerializerTest by matrixSuite {
         val reqOptions = OpenId4VpRequestOptions(
             presentationRequest = CredentialPresentationRequestBuilder(
                 RequestOptionsCredential(ConstantIndex.AtomicAttribute2023, representation)
-            ).toPresentationExchangeRequest(),
+            ).toDCQLRequest()
         )
 
         "URL test $representation" {

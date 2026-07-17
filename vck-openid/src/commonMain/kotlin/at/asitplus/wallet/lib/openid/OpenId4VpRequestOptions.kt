@@ -10,6 +10,7 @@ import at.asitplus.openid.TransactionData
 import at.asitplus.wallet.lib.RequestOptions
 import at.asitplus.wallet.lib.data.CredentialPresentationRequest
 import at.asitplus.wallet.lib.data.CredentialPresentationRequest.DCQLRequest
+import at.asitplus.wallet.lib.data.CredentialPresentationRequest.IsoDeviceRetrieval
 import at.asitplus.wallet.lib.data.CredentialPresentationRequest.PresentationExchangeRequest
 import com.benasher44.uuid.uuid4
 
@@ -93,10 +94,11 @@ data class OpenId4VpRequestOptions(
                 is PresentationExchangeRequest -> presentationRequest.presentationDefinition
                     .inputDescriptors.map { it.id }
 
+                is IsoDeviceRetrieval -> setOf() // Transaction Data not supported for Device Retrieval
                 null -> setOf()
             }.toSet()
             require(transactionIds == credentialIds) {
-                "OpenId4VP defines that the credential_ids that must be part of a transaction_data element have to be an ID from InputDescriptor"
+                "TransactionIds must match the credentialIds"
             }
         }
         if (isAnyDcApi) {
@@ -111,7 +113,7 @@ data class OpenId4VpRequestOptions(
         }
         if (verifierMetadataMode == VerifierMetadataMode.OMIT_IF_OUT_OF_BAND) {
             require(!responseMode.requiresEncryption) {
-                "verifier metadata cannot be omitted for encrypted response modes without another key distribution mechanism"
+                "verifier metadata cannot be omitted for encrypted response modes without any key distribution mechanism"
             }
         }
     }

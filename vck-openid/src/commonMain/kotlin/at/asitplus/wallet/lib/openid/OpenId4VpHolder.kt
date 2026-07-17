@@ -368,7 +368,16 @@ class OpenId4VpHolder @JvmOverloads constructor(
         }
 
     // TODO Move to separate class, may be used by Valera also for ISO requests!
-    // TODO Documentation
+    /**
+     * Matches the presentation request from [preparationState] against the holder's available credentials.
+     *
+     * This only returns candidates for wallet UI and consent; it neither selects a submission nor creates or signs a
+     * response. Turn the chosen candidates into a [CredentialPresentation] and pass it to
+     * [finalizeAuthorizationResponse]. The returned subtype mirrors the request language so its selection rules stay
+     * available to the caller.
+     *
+     * Credentials preselected by a DC API request are applied as a store filter.
+     */
     suspend fun getMatchingCredentials(
         preparationState: AuthorizationResponsePreparationState,
     ): KmmResult<CredentialMatchingResult<SubjectCredentialStore.StoreEntry>> = catching {
@@ -396,7 +405,13 @@ class OpenId4VpHolder @JvmOverloads constructor(
                     )
                 }
 
-            else -> TODO()
+            is CredentialPresentationRequest.IsoDeviceRetrieval ->
+                IsoDeviceRetrievalMatchingResult(
+                    presentationRequest = presentationRequest,
+                    matchingResult = TODO()
+                )
+
+            null -> TODO()
         }
     }
 
@@ -429,7 +444,7 @@ class OpenId4VpHolder @JvmOverloads constructor(
 
     private suspend fun AuthenticationRequestParameters.loadCredentialRequest(): CredentialPresentationRequest? =
         if (responseType?.contains(VP_TOKEN) == true) {
-                dcqlQuery?.let { CredentialPresentationRequest.DCQLRequest(it) }
+            dcqlQuery?.let { CredentialPresentationRequest.DCQLRequest(it) }
         } else null
 
 }

@@ -16,12 +16,17 @@ import kotlinx.serialization.Serializable
 import kotlin.jvm.JvmInline
 
 /**
- * Encodes the requirements of a credential presentation, created from a verifier.
+ * Query-language-independent representation of a verifier's credential requirements.
+ *
+ * A request describes what may satisfy the verifier; it does not contain the holder's choice. Match it against the
+ * credential store to present candidates to the user, then call the subtype's `toCredentialPresentation` overload
+ * with the selected submissions. Calling [toCredentialPresentation] without a selection asks the holder to derive a
+ * default submission while creating the response.
  */
 @Serializable(with = CredentialPresentationRequestSerializer::class)
 sealed interface CredentialPresentationRequest {
 
-    /** Creates the actual presentation of credentials, with no selection by the user. */
+    /** Creates a presentation instruction that lets the holder derive a default submission. */
     fun toCredentialPresentation(): CredentialPresentation
 
     /** Presentation Exchange, formerly used by OpenID4VP, now deprecated. */
@@ -55,7 +60,7 @@ sealed interface CredentialPresentationRequest {
         }
     }
 
-    /** DCQL, used by OpenID4VP */
+    /** Credential requirements expressed as a DCQL query, as used by OpenID4VP. */
     @Serializable
     @JvmInline
     value class DCQLRequest(
@@ -70,5 +75,20 @@ sealed interface CredentialPresentationRequest {
             credentialQuerySubmissions = credentialQuerySubmissions
         )
 
+    }
+
+    /** Device Retrieval according to ISO 18013-5, used for proximity and ISO 18013-7 Annex C over DCAPI. */
+    @Serializable
+    data class IsoDeviceRetrieval(
+        val deviceRequest: DeviceRequest
+    ): CredentialPresentationRequest {
+        override fun toCredentialPresentation() = toCredentialPresentation(null)
+
+        fun toCredentialPresentation(
+            submissions: Collection<Document>? = null // TODO Check if sufficient, maybe also ZKDocuments?
+        ): CredentialPresentation = CredentialPresentation.IsoDeviceRetrievalPresentation(
+            presentationRequest = this,
+            submissions = submissions
+        )
     }
 }

@@ -130,18 +130,19 @@ val Iso180137AnnexCProtocolTest by matrixSuite {
 
         test("createAuthnRequest renders device request and encryption info, and remembers the request") { f ->
             val transactionId = uuid4().toString()
-            val isoMdocRequest = f.createIsoMdocRequest(transactionId)
-
-            val itemsRequest = isoMdocRequest.deviceRequest.docRequests.single().itemsRequest.value
-            itemsRequest.docType shouldBe AtomicAttribute2023.isoDocType
-            itemsRequest.namespaces[AtomicAttribute2023.isoNamespace]!!.entries shouldBe listOf(
-                SingleItemsRequest(CLAIM_GIVEN_NAME, false),
-                SingleItemsRequest(CLAIM_DATE_OF_BIRTH, false),
-            )
-            isoMdocRequest.encryptionInfo.type shouldBe TYPE_DCAPI
-            isoMdocRequest.encryptionInfo.encryptionParameters.nonce.shouldNotBeNull()
-            isoMdocRequest.encryptionInfo.encryptionParameters.recipientPublicKey shouldBe
-                    f.decryptionKeyMaterial.publicKey.toCoseKey().getOrThrow()
+            val isoMdocRequest = f.createIsoMdocRequest(transactionId).apply {
+                deviceRequest.docRequests.single().itemsRequest.value.apply {
+                    docType shouldBe AtomicAttribute2023.isoDocType
+                    namespaces[AtomicAttribute2023.isoNamespace]!!.entries shouldBe listOf(
+                        SingleItemsRequest(CLAIM_GIVEN_NAME, false),
+                        SingleItemsRequest(CLAIM_DATE_OF_BIRTH, false),
+                    )
+                }
+                encryptionInfo.type shouldBe TYPE_DCAPI
+                encryptionInfo.encryptionParameters.nonce.shouldNotBeNull()
+                encryptionInfo.encryptionParameters.recipientPublicKey shouldBe
+                        f.decryptionKeyMaterial.publicKey.toCoseKey().getOrThrow()
+            }
 
             f.stateToIsoMdocRequestStore.get(transactionId) shouldBe isoMdocRequest
         }

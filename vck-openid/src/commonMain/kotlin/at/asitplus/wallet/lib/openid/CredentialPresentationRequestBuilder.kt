@@ -8,6 +8,7 @@ import at.asitplus.dif.FormatContainerJwt
 import at.asitplus.dif.FormatContainerSdJwt
 import at.asitplus.dif.FormatHolder
 import at.asitplus.dif.PresentationDefinition
+import at.asitplus.iso.DeviceRequest
 import at.asitplus.openid.dcql.DCQLClaimsPathPointer
 import at.asitplus.openid.dcql.DCQLClaimsQueryList
 import at.asitplus.openid.dcql.DCQLCredentialQuery
@@ -64,6 +65,15 @@ data class CredentialPresentationRequestBuilder(
         SD_JWT -> FormatHolder(sdJwt = FormatContainerSdJwt())
         ISO_MDOC -> FormatHolder(msoMdoc = FormatContainerJwt())
     }
+
+    fun toIsoDeviceRetrievalRequest() = CredentialPresentationRequest.IsoDeviceRetrieval(
+        deviceRequest = DeviceRequest(
+            version = "1.0",
+            docRequests = credentials.map { it.toDocRequest() }.toTypedArray(),
+            deviceRequestInfo = null,
+            readerAuthAll = null,
+        )
+    )
 
     fun toDCQLRequest(): DCQLRequest? = credentials.toQueryList()?.let {
         DCQLRequest(

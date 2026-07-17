@@ -1,14 +1,8 @@
 package at.asitplus.wallet.lib.agent
 
 import at.asitplus.data.NonEmptyList.Companion.toNonEmptyList
-import at.asitplus.dif.Constraint
-import at.asitplus.dif.ConstraintField
-import at.asitplus.dif.DifInputDescriptor
-import at.asitplus.dif.PresentationDefinition
 import at.asitplus.iso.Document
 import at.asitplus.iso.MobileSecurityObject
-import at.asitplus.jsonpath.core.NormalizedJsonPath
-import at.asitplus.jsonpath.core.NormalizedJsonPathSegment.NameSegment
 import at.asitplus.openid.CredentialFormatEnum
 import at.asitplus.openid.dcql.DCQLClaimsPathPointer
 import at.asitplus.openid.dcql.DCQLClaimsQueryList
@@ -28,9 +22,7 @@ import at.asitplus.wallet.lib.data.ConstantIndex
 import at.asitplus.wallet.lib.data.ConstantIndex.AtomicAttribute2023.CLAIM_DATE_OF_BIRTH
 import at.asitplus.wallet.lib.data.ConstantIndex.AtomicAttribute2023.CLAIM_GIVEN_NAME
 import at.asitplus.wallet.lib.data.ConstantIndex.CredentialRepresentation.ISO_MDOC
-import at.asitplus.wallet.lib.data.CredentialPresentation.PresentationExchangePresentation
 import at.asitplus.wallet.lib.data.CredentialPresentationRequest
-import at.asitplus.wallet.lib.data.CredentialPresentationRequest.PresentationExchangeRequest
 import at.asitplus.wallet.lib.data.StatusListCwt
 import at.asitplus.wallet.lib.data.rfc.tokenStatusList.IdentifierList
 import at.asitplus.wallet.lib.data.rfc.tokenStatusList.IdentifierListInfo
@@ -54,26 +46,6 @@ val AgentIsoMdocTest by matrixSuite {
 
     for (mode in IsoRevocationMode.entries) {
         fixture { runBlocking { createIsoMdocFixture(mode) } } - {
-            "presex: simple walk-through success${mode.testNameSuffix}" {
-                val vp = it.createPresexDeviceResponse(CLAIM_GIVEN_NAME, CLAIM_DATE_OF_BIRTH)
-
-                it.verifyPresentation(vp).apply {
-                    assertPresentedClaims(expectDateOfBirth = true)
-                    assertRevocationInvalid(expectedInvalid = false)
-                }
-            }
-
-            "presex: revoked credential${mode.testNameSuffix}" {
-                val vp = it.createPresexDeviceResponse(CLAIM_GIVEN_NAME)
-
-                it.revokeSingleStoredCredential() shouldBe true
-
-                it.verifyPresentation(vp).apply {
-                    assertPresentedClaims(expectDateOfBirth = false)
-                    assertRevocationInvalid(expectedInvalid = true)
-                }
-            }
-
             "dcql: simple walk-through success${mode.testNameSuffix}" {
                 val vp = it.createDcqlDeviceResponse(CLAIM_GIVEN_NAME, CLAIM_DATE_OF_BIRTH)
 
@@ -142,8 +114,8 @@ val AgentIsoMdocTest by matrixSuite {
                         ).getOrThrow()
                     }
 
-                    val firstVp = it.createPresexDeviceResponse(CLAIM_GIVEN_NAME)
-                    val secondVp = createPresexDeviceResponse(
+                    val firstVp = it.createDcqlDeviceResponse(CLAIM_GIVEN_NAME)
+                    val secondVp = createDcqlDeviceResponse(
                         holder = secondHolder,
                         request = it.verifier.createPresentationRequest(
                             calcIsoDeviceSignaturePlain = simpleSigner(SignCose(keyMaterial = secondHolderKeyMaterial)),
@@ -165,7 +137,7 @@ val AgentIsoMdocTest by matrixSuite {
                 }
 
                 "identifier list: verifier rejects presentation when resolver returns status list token" {
-                    val vp = it.createPresexDeviceResponse(CLAIM_GIVEN_NAME)
+                    val vp = it.createDcqlDeviceResponse(CLAIM_GIVEN_NAME)
 
                     val mismatchedVerifier = NonceChallengeVerifier(
                         verifierId = it.verifierId,
@@ -286,13 +258,6 @@ private fun statusListResolver(statusListIssuer: StatusListAgent) = TokenStatusR
     }
 )
 
-private suspend fun IsoMdocFixture.createPresexDeviceResponse(vararg attributeNames: String) =
-    createPresexDeviceResponse(
-        holder = holder,
-        request = verifier.createPresentationRequest(calcIsoDeviceSignaturePlain = simpleSigner(signer)),
-        attributeNames = attributeNames,
-    )
-
 private suspend fun IsoMdocFixture.createDcqlDeviceResponse(vararg attributeNames: String) = createDcqlDeviceResponse(
     holder = holder,
     request = verifier.createPresentationRequest(calcIsoDeviceSignaturePlain = simpleSigner(signer)),
@@ -319,20 +284,6 @@ private suspend fun IsoMdocFixture.revokeSingleStoredCredential(): Boolean {
             storeEntry.mdocIdentifierListInfo().identifier,
         )
     }
-}
-
-private suspend fun createPresexDeviceResponse(
-    holder: HolderAgent,
-    request: PresentationRequestParameters,
-    attributeNames: Array<out String>,
-): CreatePresentationResult.DeviceResponse {
-    val presentationParameters = holder.createPresentation(
-        request = request,
-        credentialPresentation = buildPresentationDefinition(*attributeNames)
-    ).getOrThrow().shouldBeInstanceOf<PresentationResponseParameters.PresentationExchangeParameters>()
-
-    return presentationParameters.presentationResults.shouldBeSingleton().firstOrNull()
-        .shouldBeInstanceOf<CreatePresentationResult.DeviceResponse>()
 }
 
 private suspend fun createDcqlDeviceResponse(
@@ -425,27 +376,5 @@ private fun buildDCQLQuery(vararg claimsQueries: DCQLIsoMdocClaimsQuery) = DCQLQ
                 doctypeValue = ConstantIndex.AtomicAttribute2023.isoDocType,
             )
         )
-    )
-)
-
-private fun buildPresentationDefinition(vararg attributeName: String) = PresentationExchangePresentation(
-    PresentationExchangeRequest(
-        PresentationDefinition(
-            DifInputDescriptor(
-                id = ConstantIndex.AtomicAttribute2023.isoDocType,
-                constraints = Constraint(
-                    fields = attributeName.map {
-                        ConstraintField(
-                            path = listOf(
-                                NormalizedJsonPath(
-                                    NameSegment(ConstantIndex.AtomicAttribute2023.isoNamespace),
-                                    NameSegment(it),
-                                ).toString()
-                            )
-                        )
-                    }.toSet()
-                )
-            )
-        ),
     )
 )

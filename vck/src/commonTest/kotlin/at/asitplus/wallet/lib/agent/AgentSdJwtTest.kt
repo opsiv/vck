@@ -2,8 +2,6 @@ package at.asitplus.wallet.lib.agent
 
 import at.asitplus.catching
 import at.asitplus.data.NonEmptyList.Companion.toNonEmptyList
-import at.asitplus.dif.DifInputDescriptor
-import at.asitplus.dif.PresentationDefinition
 import at.asitplus.iso.sha256
 import at.asitplus.openid.CredentialFormatEnum
 import at.asitplus.openid.dcql.DCQLClaimsPathPointer
@@ -24,7 +22,6 @@ import at.asitplus.wallet.lib.data.ConstantIndex
 import at.asitplus.wallet.lib.data.ConstantIndex.AtomicAttribute2023.CLAIM_DATE_OF_BIRTH
 import at.asitplus.wallet.lib.data.ConstantIndex.AtomicAttribute2023.CLAIM_GIVEN_NAME
 import at.asitplus.wallet.lib.data.ConstantIndex.CredentialRepresentation.SD_JWT
-import at.asitplus.wallet.lib.data.CredentialPresentation.PresentationExchangePresentation
 import at.asitplus.wallet.lib.data.CredentialPresentationRequest
 import at.asitplus.wallet.lib.data.KeyBindingJws
 import at.asitplus.wallet.lib.data.rfc.tokenStatusList.StatusListInfo
@@ -118,84 +115,6 @@ val AgentSdJwtTest by matrixSuite {
                     freshnessSummary.tokenStatusValidationResult
                         .shouldNotBeInstanceOf<TokenStatusValidationResult.Invalid>()
                 }
-        }
-
-        "presex: simple walk-through success" {
-            val request = it.verifier.createPresentationRequest()
-            val presentationParameters = it.holder.createPresentation(
-                request = request,
-                credentialPresentation = buildPresentationDefinition(CLAIM_GIVEN_NAME, CLAIM_DATE_OF_BIRTH)
-            ).getOrThrow().shouldBeInstanceOf<PresentationResponseParameters.PresentationExchangeParameters>()
-
-            val vp = presentationParameters.presentationResults.firstOrNull()
-                .shouldBeInstanceOf<CreatePresentationResult.SdJwt>()
-
-            it.verifier.verifyPresentationSdJwt(vp.sdJwt).getOrThrow()
-                .shouldBeInstanceOf<Verifier.VerifyPresentationResult.SuccessSdJwt>().apply {
-                    reconstructedJsonObject[CLAIM_GIVEN_NAME]?.jsonPrimitive?.content shouldBe "Susanne"
-                    reconstructedJsonObject[CLAIM_DATE_OF_BIRTH]?.jsonPrimitive?.content shouldBe "1990-01-01"
-                    freshnessSummary.tokenStatusValidationResult
-                        .shouldNotBeInstanceOf<TokenStatusValidationResult.Invalid>()
-                }
-        }
-
-        "presex: wrong key binding jwt" {
-            val request = it.verifier.createPresentationRequest()
-            val presentationParameters = it.holder.createPresentation(
-                request = request,
-                credentialPresentation = buildPresentationDefinition(CLAIM_GIVEN_NAME)
-            ).getOrThrow().shouldBeInstanceOf<PresentationResponseParameters.PresentationExchangeParameters>()
-
-            val vp = presentationParameters.presentationResults.firstOrNull()
-                .shouldBeInstanceOf<CreatePresentationResult.SdJwt>()
-            // replace key binding of original vp.sdJwt (i.e. the part after the last `~`)
-            val freshKbJwt = createFreshSdJwtKeyBinding(request.nonce, request.audience)
-            val malformedVpSdJwt = vp.serialized.replaceAfterLast("~", freshKbJwt.substringAfterLast("~"))
-
-            shouldThrowAny {
-                it.verifier.verifyPresentationSdJwt(
-                    SdJwtSigned.parseCatching(malformedVpSdJwt).getOrThrow(),
-                ).getOrThrow()
-            }
-        }
-
-        "presex: wrong challenge in key binding jwt" {
-            val request = it.verifier.createPresentationRequest()
-            val malformedChallenge = request.nonce.reversed()
-            val presentationParameters = it.holder.createPresentation(
-                request = PresentationRequestParameters(malformedChallenge, it.verifierId),
-                credentialPresentation = buildPresentationDefinition(CLAIM_GIVEN_NAME)
-            ).getOrThrow().shouldBeInstanceOf<PresentationResponseParameters.PresentationExchangeParameters>()
-
-            val vp = presentationParameters.presentationResults.firstOrNull()
-                .shouldBeInstanceOf<CreatePresentationResult.SdJwt>()
-
-            shouldThrowAny {
-                it.verifier.verifyPresentationSdJwt(vp.sdJwt).getOrThrow()
-            }
-        }
-
-        "presex: revoked sd jwt" {
-            val request = it.verifier.createPresentationRequest()
-            val presentationParameters = it.holder.createPresentation(
-                request = request,
-                credentialPresentation = buildPresentationDefinition(CLAIM_GIVEN_NAME)
-            ).getOrThrow().shouldBeInstanceOf<PresentationResponseParameters.PresentationExchangeParameters>()
-
-            val vp = presentationParameters.presentationResults.firstOrNull()
-                .shouldBeInstanceOf<CreatePresentationResult.SdJwt>()
-            it.holderCredentialStore.getCredentials().getOrThrow()
-                .filterIsInstance<SubjectCredentialStore.StoreEntry.SdJwt>()
-                .forEach { storeEntry ->
-                    it.statusListIssuer.revokeCredentialByIndex(
-                        FixedTimePeriodProvider.timePeriod,
-                        storeEntry.sdJwt.statusElement.shouldBeInstanceOf<StatusListInfo>().index
-                    ) shouldBe true
-                }
-            it.verifier.verifyPresentationSdJwt(vp.sdJwt).getOrThrow()
-                .shouldBeInstanceOf<Verifier.VerifyPresentationResult.SuccessSdJwt>()
-                .freshnessSummary.tokenStatusValidationResult
-                .shouldBeInstanceOf<TokenStatusValidationResult.Invalid>()
         }
 
         "dcql: simple walk-through success" {
@@ -417,11 +336,6 @@ private fun buildDCQLQuery(vararg claimsQueries: DCQLJsonClaimsQuery) = DCQLQuer
     )
 )
 
-private fun buildPresentationDefinition(vararg attributeName: String) = PresentationExchangePresentation(
-    CredentialPresentationRequest.PresentationExchangeRequest
-        .forAttributeNames(*attributeName.map { "$['$it']" }.toTypedArray())
-)
-
 suspend fun createFreshSdJwtKeyBinding(challenge: String, verifierId: String): String {
     val holderKeyMaterial = EphemeralKeyWithoutCert()
     val holder = HolderAgent(holderKeyMaterial)
@@ -437,17 +351,17 @@ suspend fun createFreshSdJwtKeyBinding(challenge: String, verifierId: String): S
             ).getOrThrow()
         ).getOrThrow().toStoreCredentialInput()
     )
-    val presentationResult = holder.createPresentation(
+    val presentationResult = holder.createDefaultPresentation(
         request = PresentationRequestParameters(nonce = challenge, audience = verifierId),
-        credentialPresentation = PresentationExchangePresentation(
-            CredentialPresentationRequest.PresentationExchangeRequest(
-                PresentationDefinition(
-                    DifInputDescriptor(id = uuid4().toString())
-                ),
-            ),
+        credentialPresentationRequest = CredentialPresentationRequest.DCQLRequest(
+            buildDCQLQuery(
+                DCQLJsonClaimsQuery(
+                    path = DCQLClaimsPathPointer(CLAIM_GIVEN_NAME),
+                )
+            )
         )
-    ).getOrThrow().shouldBeInstanceOf<PresentationResponseParameters.PresentationExchangeParameters>()
-    return (presentationResult.presentationResults.first() as CreatePresentationResult.SdJwt).serialized
+    ).getOrThrow().shouldBeInstanceOf<PresentationResponseParameters.DCQLParameters>()
+    return (presentationResult.verifiablePresentations.values.first().first() as CreatePresentationResult.SdJwt).serialized
 }
 
 private suspend fun createSdJwtPresentation(

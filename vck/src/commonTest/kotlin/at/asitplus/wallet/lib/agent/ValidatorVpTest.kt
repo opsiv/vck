@@ -14,14 +14,18 @@ package at.asitplus.wallet.lib.agent
  * see the "LICENSE" file for more details
  */
 
-import at.asitplus.dif.DifInputDescriptor
-import at.asitplus.dif.PresentationDefinition
+import at.asitplus.data.NonEmptyList.Companion.nonEmptyListOf
+import at.asitplus.openid.dcql.DCQLCredentialQueryIdentifier
+import at.asitplus.openid.dcql.DCQLCredentialQueryList
+import at.asitplus.openid.dcql.DCQLJwtVcCredentialMetadataAndValidityConstraints
+import at.asitplus.openid.dcql.DCQLJwtVcCredentialQuery
+import at.asitplus.openid.dcql.DCQLQuery
 import at.asitplus.testballoon.matrix.fixture
 import at.asitplus.testballoon.matrix.matrixSuite
 import at.asitplus.wallet.lib.agent.Verifier.VerifyPresentationResult
 import at.asitplus.wallet.lib.data.ConstantIndex
 import at.asitplus.wallet.lib.data.ConstantIndex.CredentialRepresentation.PLAIN_JWT
-import at.asitplus.wallet.lib.data.CredentialPresentation.PresentationExchangePresentation
+import at.asitplus.wallet.lib.data.CredentialPresentation.DCQLPresentation
 import at.asitplus.wallet.lib.data.CredentialPresentationRequest
 import at.asitplus.wallet.lib.data.VerifiablePresentation
 import at.asitplus.wallet.lib.data.VerifiablePresentationJws
@@ -46,12 +50,20 @@ import kotlinx.coroutines.runBlocking
 
 val ValidatorVpTest by matrixSuite {
 
-    val singularPresentationDefinition = PresentationExchangePresentation(
-        CredentialPresentationRequest.PresentationExchangeRequest(
-            PresentationDefinition(
-                DifInputDescriptor(id = uuid4().toString())
-            ),
+    val singularDcqlPresentation = DCQLPresentation(
+        CredentialPresentationRequest.DCQLRequest(
+            DCQLQuery(
+                credentials = DCQLCredentialQueryList(
+                    DCQLJwtVcCredentialQuery(
+                        id = DCQLCredentialQueryIdentifier(uuid4().toString()),
+                        meta = DCQLJwtVcCredentialMetadataAndValidityConstraints(
+                            typeValues = nonEmptyListOf(listOfNotNull(ConstantIndex.AtomicAttribute2023.vcType))
+                        ),
+                    )
+                )
+            )
         ),
+        credentialQuerySubmissions = null,
     )
 
     fixture {
@@ -113,10 +125,10 @@ val ValidatorVpTest by matrixSuite {
             val request = it.verifier.createPresentationRequest()
             val presentationParameters = it.holder.createPresentation(
                 request = request,
-                credentialPresentation = singularPresentationDefinition,
-            ).getOrNull().shouldBeInstanceOf<PresentationResponseParameters.PresentationExchangeParameters>()
+                credentialPresentation = singularDcqlPresentation,
+            ).getOrNull().shouldBeInstanceOf<PresentationResponseParameters.DCQLParameters>()
 
-            val vp = presentationParameters.presentationResults.first()
+            val vp = presentationParameters.verifiablePresentations.values.first().first()
                 .shouldBeInstanceOf<CreatePresentationResult.VpJws>()
             it.verifier.verifyPresentationVcJwt(vp.jwsSigned.shouldNotBeNull()).getOrThrow()
         }
@@ -153,10 +165,10 @@ val ValidatorVpTest by matrixSuite {
         "wrong challenge in VP leads to error" {
             val presentationParameters = it.holder.createPresentation(
                 request = PresentationRequestParameters(nonce = "challenge", audience = it.verifierId),
-                credentialPresentation = singularPresentationDefinition,
-            ).getOrNull().shouldBeInstanceOf<PresentationResponseParameters.PresentationExchangeParameters>()
+                credentialPresentation = singularDcqlPresentation,
+            ).getOrNull().shouldBeInstanceOf<PresentationResponseParameters.DCQLParameters>()
 
-            val vp = presentationParameters.presentationResults.firstOrNull()
+            val vp = presentationParameters.verifiablePresentations.values.firstOrNull()?.firstOrNull()
                 .shouldBeInstanceOf<CreatePresentationResult.VpJws>()
             shouldThrowAny {
                 it.verifier.verifyPresentationVcJwt(vp.jwsSigned.shouldNotBeNull()).getOrThrow()
@@ -167,10 +179,10 @@ val ValidatorVpTest by matrixSuite {
             val request = it.verifier.createPresentationRequest()
             val presentationParameters = it.holder.createPresentation(
                 request = PresentationRequestParameters(nonce = request.nonce, audience = "keyId"),
-                credentialPresentation = singularPresentationDefinition,
-            ).getOrThrow().shouldBeInstanceOf<PresentationResponseParameters.PresentationExchangeParameters>()
+                credentialPresentation = singularDcqlPresentation,
+            ).getOrThrow().shouldBeInstanceOf<PresentationResponseParameters.DCQLParameters>()
 
-            val vp = presentationParameters.presentationResults.first()
+            val vp = presentationParameters.verifiablePresentations.values.first().first()
                 .shouldBeInstanceOf<CreatePresentationResult.VpJws>()
             shouldThrowAny {
                 it.verifier.verifyPresentationVcJwt(vp.jwsSigned.shouldNotBeNull()).getOrThrow()
@@ -181,10 +193,10 @@ val ValidatorVpTest by matrixSuite {
             val request = it.verifier.createPresentationRequest()
             val presentationResults = it.holder.createPresentation(
                 request = request,
-                credentialPresentation = singularPresentationDefinition,
-            ).getOrNull().shouldBeInstanceOf<PresentationResponseParameters.PresentationExchangeParameters>()
+                credentialPresentation = singularDcqlPresentation,
+            ).getOrNull().shouldBeInstanceOf<PresentationResponseParameters.DCQLParameters>()
 
-            val vp = presentationResults.presentationResults.first()
+            val vp = presentationResults.verifiablePresentations.values.first().first()
                 .shouldBeInstanceOf<CreatePresentationResult.VpJws>()
             it.holderCredentialStore.getCredentials().getOrThrow()
                 .filterIsInstance<SubjectCredentialStore.StoreEntry.Vc>()

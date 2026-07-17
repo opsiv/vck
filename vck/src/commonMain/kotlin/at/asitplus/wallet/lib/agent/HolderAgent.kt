@@ -158,6 +158,7 @@ class HolderAgent @JvmOverloads constructor(
     ): KmmResult<PresentationResponseParameters> =
         createPresentation(request, credentialPresentationRequest.toCredentialPresentation())
 
+    @Suppress("DEPRECATION")
     override suspend fun createPresentation(
         request: PresentationRequestParameters,
         credentialPresentation: CredentialPresentation,

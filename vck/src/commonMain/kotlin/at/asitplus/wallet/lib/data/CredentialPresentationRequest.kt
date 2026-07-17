@@ -25,6 +25,7 @@ sealed interface CredentialPresentationRequest {
     fun toCredentialPresentation(): CredentialPresentation
 
     /** Presentation Exchange, formerly used by OpenID4VP, now deprecated. */
+    @Suppress("DEPRECATION")
     @Deprecated("Support for Presentation Exchange been removed from OpenID4VP")
     @Serializable
     data class PresentationExchangeRequest(
@@ -41,6 +42,7 @@ sealed interface CredentialPresentationRequest {
         )
 
         companion object {
+            @Deprecated("Support for Presentation Exchange been removed from OpenID4VP")
             fun forAttributeNames(vararg attributeName: String) = PresentationExchangeRequest(
                 PresentationDefinition(
                     DifInputDescriptor(

@@ -7,6 +7,7 @@ import at.asitplus.dif.PresentationDefinition
 import at.asitplus.dif.SubmissionRequirement
 import kotlinx.serialization.Serializable
 
+@Deprecated("Support for Presentation Exchange been removed from OpenID4VP")
 @Serializable
 sealed class PresentationSubmissionValidator {
     companion object {

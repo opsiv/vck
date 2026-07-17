@@ -57,7 +57,7 @@ data class RequestOptionsCredential(
     private val isMdoc: Boolean
         get() = credentialScheme.isoDocType != null && representation == ISO_MDOC
 
-    /** To be used for Presentation Exchange in [DifInputDescriptor.constraints] */
+    @Deprecated("Support for Presentation Exchange been removed from OpenID4VP")
     fun toConstraint() = Constraint(
         limitDisclosure = if (isMdoc) RequirementEnum.REQUIRED else null,
         fields = (requiredAttributes() + optionalAttributes() + toTypeConstraint()).filterNotNull().toSet()

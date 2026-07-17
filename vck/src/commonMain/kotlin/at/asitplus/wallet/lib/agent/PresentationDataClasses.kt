@@ -24,9 +24,9 @@ import kotlinx.serialization.json.putJsonArray
 
 /**
  * Input to create a verifiable presentation of credentials, i.e. contains input required to fill fields in the VP,
- * like a challenge from the verifier, ot their identifier.
+ * like a challenge from the verifier and their identifier.
  *
- * Decouples the reading of that data fields from the protocol input (e.g. OpenID4VP) from the usage in the [Holder].
+ * Decouples the reading of these data fields from the protocol input (e.g., OpenID4VP) from their usage.
  *
  * See [VerifiablePresentationFactory.createVerifiablePresentation] for usage of these data fields.
  */
@@ -39,11 +39,7 @@ data class PresentationRequestParameters(
      * (OpenID4VP with ISO/IEC 18013-7)
      */
     val calcIsoDeviceSignaturePlain: (suspend (input: IsoDeviceSignatureInput) -> CoseSigned<ByteArray>?) = { null },
-    /**
-     * Whether to return one [at.asitplus.iso.DeviceResponse] containing multiple [at.asitplus.iso.Document] objects,
-     * or multiple [at.asitplus.iso.DeviceResponse] objects with one [at.asitplus.iso.Document] each.
-     * This applies to presentation exchange only, as we need to control the behavior for proximity presentations.
-     */
+    @Deprecated("This value is given by `DCQLCredentialQuery.multiple` or by the request being ISO Device Retrieval")
     val returnOneDeviceResponse: Boolean = false
 ) {
     /**
@@ -62,8 +58,13 @@ data class IsoDeviceSignatureInput(
     val deviceNameSpaceBytes: ByteStringWrapper<DeviceNameSpaces>,
 )
 
+// TODO Better documentation
+/** Intermediate classes for the response of the presentation protocol */
 sealed interface PresentationResponseParameters {
+    // TODO Move to vck-openid because it's used only there?
     val vpToken: JsonElement?
+
+    @Deprecated("Presentation Exchange is deprecated, use DCQL or DeviceRequest instead")
     val presentationSubmission: PresentationSubmission?
 
     data class DCQLParameters(
@@ -134,6 +135,7 @@ sealed interface CreatePresentationResult {
     ) : CreatePresentationResult
 }
 
+@Deprecated("Support for Presentation Exchange been removed from OpenID4VP")
 @Serializable
 data class PresentationExchangeCredentialDisclosure<Credential : Any>(
     val credential: Credential,

@@ -250,51 +250,6 @@ val OpenId4VpIsoProtocolTest by matrixSuite {
                 }
         }
 
-        "Selective Disclosure with two documents in presentation exchange" { scope ->
-            val mdlFamilyName = FAMILY_NAME
-            val atomicGivenName = CLAIM_GIVEN_NAME
-            val requestOptions = OpenId4VpRequestOptions(
-                presentationRequest = CredentialPresentationRequestBuilder(
-                    RequestOptionsCredential(
-                        credentialScheme = scope.mdlScheme,
-                        representation = ISO_MDOC,
-                        attributePaths = setOf(DCQLClaimsPathPointer(mdlFamilyName))
-                    ),
-                    RequestOptionsCredential(
-                        credentialScheme = AtomicAttribute2023,
-                        representation = ISO_MDOC,
-                        attributePaths = setOf(DCQLClaimsPathPointer(atomicGivenName))
-                    ),
-                ).toPresentationExchangeRequest(),
-                responseMode = OpenIdConstants.ResponseMode.DirectPost,
-                responseUrl = "https://example.com/response",
-            )
-            val authnRequest = scope.verifierOid4vp.createAuthnRequest(requestOptions, Query(scope.walletUrl))
-                .getOrThrow().url
-
-            val authnResponse = scope.holderOid4vp.createAuthnResponse(authnRequest).getOrThrow()
-                .shouldBeInstanceOf<AuthenticationResponseResult.Post>().apply {
-                    // make sure there are two device responses for two credentials returned in the presentation
-                    params["vp_token"].shouldNotBeEmpty().shouldNotBeNull().apply {
-                        joseCompliantSerializer.decodeFromString<JsonArray>(this).apply {
-                            shouldHaveSize(2)
-                        }
-                    }
-                }
-
-            scope.verifierOid4vp.validateAuthnResponse(authnResponse.params.formUrlEncode()).getOrThrow()
-                .vpTokenValidationResult.shouldNotBeNull().getOrThrow()
-                .shouldBeInstanceOf<VpTokenValidationResultPresentationExchange>()
-                .inputDescriptorResponseValidations.values.flatMap {
-                    it.getOrThrow().shouldBeInstanceOf<SuccessIso>().documents
-                }.apply {
-                    first { it.mso.docType == AtomicAttribute2023.isoDocType }
-                        .validItems.shouldHaveSingleElement { it.elementIdentifier == atomicGivenName }
-                    first { it.mso.docType == scope.mdlScheme.isoDocType }
-                        .validItems.shouldHaveSingleElement { it.elementIdentifier == mdlFamilyName }
-                }
-        }
-
         "Selective Disclosure with two documents in DCQL" { scope ->
             val mdlFamilyName = FAMILY_NAME
             val atomicGivenName = CLAIM_GIVEN_NAME

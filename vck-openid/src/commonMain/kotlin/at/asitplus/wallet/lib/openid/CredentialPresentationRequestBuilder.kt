@@ -40,6 +40,7 @@ data class CredentialPresentationRequestBuilder(
 ) {
     constructor(vararg credentials: RequestOptionsCredential) : this(credentials.toList())
 
+    @Deprecated("Support for Presentation Exchange been removed from OpenID4VP")
     fun toPresentationExchangeRequest() = CredentialPresentationRequest.PresentationExchangeRequest(
         PresentationDefinition(
             id = uuid4().toString(),

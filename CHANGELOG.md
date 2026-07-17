@@ -1,5 +1,11 @@
 # Changelog
 
+Release 8.0.0 (unreleased):
+- OpenID for Verifiable Presentations:
+    - Remove support for Presentation Exchange, since OpenID4VP 1.0 only supports DCQL
+- Deprecations:
+    - Support all classes used for Presentation Exchange requests and so on, e.g., `CredentialPresentationRequest.PresentationExchangeRequest` or `PresentationExchangeCredentialDisclosure` or `CredentialPresentation.PresentationExchangePresentation`
+
 Release 7.0.0 (unreleased):
 - Credential definitions:
     - Move `CredentialScheme` out of `ConstantIndex`

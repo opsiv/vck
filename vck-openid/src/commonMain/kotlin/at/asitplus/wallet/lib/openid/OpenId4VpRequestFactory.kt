@@ -2,7 +2,6 @@ package at.asitplus.wallet.lib.openid
 
 import at.asitplus.KmmResult
 import at.asitplus.catching
-import at.asitplus.dif.DifInputDescriptor
 import at.asitplus.dif.FormatContainerJwt
 import at.asitplus.dif.FormatContainerSdJwt
 import at.asitplus.openid.AuthenticationRequestParameters
@@ -26,7 +25,6 @@ import at.asitplus.signum.indispensable.josef.toJwsAlgorithm
 import at.asitplus.wallet.lib.NonceService
 import at.asitplus.wallet.lib.agent.KeyMaterial
 import at.asitplus.wallet.lib.data.CredentialPresentationRequest.DCQLRequest
-import at.asitplus.wallet.lib.data.CredentialPresentationRequest.PresentationExchangeRequest
 import at.asitplus.wallet.lib.data.toBase64UrlJsonString
 import at.asitplus.wallet.lib.jws.JwsContentTypeConstants
 import at.asitplus.wallet.lib.jws.SignJwtFun
@@ -208,30 +206,8 @@ internal class OpenId4VpRequestFactory(
         // the DC API binds request and response through the browser, not through a `state`
         state = if (isAnyDcApi) null else state,
         dcqlQuery = (presentationRequest as? DCQLRequest)?.dcqlQuery,
-        // Presentation Exchange is not available for the DC API, only DCQL
-        presentationDefinition = (presentationRequest as? PresentationExchangeRequest)?.presentationDefinition?.run {
-            copy(
-                inputDescriptors = inputDescriptors.map {
-                    when (it) {
-                        is DifInputDescriptor -> it.replaceAvailableFormatHolders()
-                    }
-                }
-            )
-        },
         transactionData = transactionData?.map { it.toBase64UrlJsonString() },
         expectedOrigins = expectedOrigins,
-    )
-
-    /**
-     * Defining *some* non-null format container is our way of specifying the allowed credential representations,
-     * but provided values are overridden here
-     */
-    private fun DifInputDescriptor.replaceAvailableFormatHolders() = copy(
-        format = format?.copy(
-            jwtVp = format?.jwtVp?.let { containerJwt },
-            sdJwt = format?.sdJwt?.let { containerSdJwt },
-            msoMdoc = format?.msoMdoc?.let { containerJwt },
-        )
     )
 
     private fun OpenId4VpRequestOptions.clientMetadata(): RelyingPartyMetadata? = when (verifierMetadataMode) {

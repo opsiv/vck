@@ -102,10 +102,9 @@ val RedirectUriClientTest by matrixSuite {
 
             it.verifierOid4vp.validateAuthnResponse(authnResponse.url).getOrThrow()
                 .vpTokenValidationResult.shouldNotBeNull().getOrThrow()
-                .shouldBeInstanceOf<VpTokenValidationResultPresentationExchange>()
-                .inputDescriptorResponseValidations.values.map {
-                    it.getOrThrow()
-                }.shouldBeSingleton().first()
+                .shouldBeInstanceOf<VpTokenValidationResultDCQL>()
+                .credentialQueryResponseValidations.values.flatMap { it.map { it.getOrThrow() } }
+                .shouldBeSingleton().first()
                 .shouldBeInstanceOf<Verifier.VerifyPresentationResult.Success>()
                 .vp.freshVerifiableCredentials.shouldNotBeEmpty()
 
@@ -126,7 +125,7 @@ val RedirectUriClientTest by matrixSuite {
             val requestOptions = OpenId4VpRequestOptions(
                 presentationRequest = CredentialPresentationRequestBuilder(
                     RequestOptionsCredential(ConstantIndex.AtomicAttribute2023)
-                ).toPresentationExchangeRequest(),
+                ).toDCQLRequest(),
                 responseType = OpenIdConstants.ID_TOKEN
             )
             val authnRequest = verifierOid4vp.createAuthnRequest(
@@ -182,7 +181,7 @@ val RedirectUriClientTest by matrixSuite {
                 OpenId4VpRequestOptions(
                     presentationRequest = CredentialPresentationRequestBuilder(
                         RequestOptionsCredential(ConstantIndex.AtomicAttribute2023)
-                    ).toPresentationExchangeRequest(),
+                    ).toDCQLRequest(),
                     responseMode = OpenIdConstants.ResponseMode.DirectPost,
                     responseUrl = it.clientId,
                 ),
@@ -195,10 +194,9 @@ val RedirectUriClientTest by matrixSuite {
 
             it.verifierOid4vp.validateAuthnResponse(authnResponse.params.formUrlEncode()).getOrThrow()
                 .vpTokenValidationResult.shouldNotBeNull().getOrThrow()
-                .shouldBeInstanceOf<VpTokenValidationResultPresentationExchange>()
-                .inputDescriptorResponseValidations.values.map {
-                    it.getOrThrow()
-                }.shouldBeSingleton().first()
+                .shouldBeInstanceOf<VpTokenValidationResultDCQL>()
+                .credentialQueryResponseValidations.values.flatMap { it.map { it.getOrThrow() } }
+                .shouldBeSingleton().first()
                 .shouldBeInstanceOf<Verifier.VerifyPresentationResult.Success>()
                 .vp.freshVerifiableCredentials.shouldNotBeEmpty()
         }
@@ -208,7 +206,7 @@ val RedirectUriClientTest by matrixSuite {
                 OpenId4VpRequestOptions(
                     presentationRequest = CredentialPresentationRequestBuilder(
                         RequestOptionsCredential(ConstantIndex.AtomicAttribute2023)
-                    ).toPresentationExchangeRequest(),
+                    ).toDCQLRequest(),
                     responseMode = OpenIdConstants.ResponseMode.DirectPost,
                     responseUrl = it.clientId,
                     verifierMetadataMode = VerifierMetadataMode.OMIT_IF_OUT_OF_BAND,
@@ -224,10 +222,9 @@ val RedirectUriClientTest by matrixSuite {
 
             it.verifierOid4vp.validateAuthnResponse(authnResponse.params.formUrlEncode()).getOrThrow()
                 .vpTokenValidationResult.shouldNotBeNull().getOrThrow()
-                .shouldBeInstanceOf<VpTokenValidationResultPresentationExchange>()
-                .inputDescriptorResponseValidations.values.map {
-                    it.getOrThrow()
-                }.shouldBeSingleton().first()
+                .shouldBeInstanceOf<VpTokenValidationResultDCQL>()
+                .credentialQueryResponseValidations.values.flatMap { it.map { it.getOrThrow() } }
+                .shouldBeSingleton().first()
                 .shouldBeInstanceOf<Verifier.VerifyPresentationResult.Success>()
                 .vp.freshVerifiableCredentials.shouldNotBeEmpty()
         }
@@ -237,7 +234,7 @@ val RedirectUriClientTest by matrixSuite {
                 OpenId4VpRequestOptions(
                     presentationRequest = CredentialPresentationRequestBuilder(
                         RequestOptionsCredential(ConstantIndex.AtomicAttribute2023)
-                    ).toPresentationExchangeRequest(),
+                    ).toDCQLRequest(),
                     responseMode = OpenIdConstants.ResponseMode.DirectPostJwt,
                     responseUrl = it.clientId,
                 ),
@@ -252,10 +249,9 @@ val RedirectUriClientTest by matrixSuite {
 
             it.verifierOid4vp.validateAuthnResponse(authnResponse.params.formUrlEncode()).getOrThrow()
                 .vpTokenValidationResult.shouldNotBeNull().getOrThrow()
-                .shouldBeInstanceOf<VpTokenValidationResultPresentationExchange>()
-                .inputDescriptorResponseValidations.values.map {
-                    it.getOrThrow()
-                }.shouldBeSingleton().first()
+                .shouldBeInstanceOf<VpTokenValidationResultDCQL>()
+                .credentialQueryResponseValidations.values.flatMap { it.map { it.getOrThrow() } }
+                .shouldBeSingleton().first()
                 .shouldBeInstanceOf<Verifier.VerifyPresentationResult.Success>()
                 .vp.freshVerifiableCredentials.shouldNotBeEmpty()
         }
@@ -266,7 +262,7 @@ val RedirectUriClientTest by matrixSuite {
                 OpenId4VpRequestOptions(
                     presentationRequest = CredentialPresentationRequestBuilder(
                         RequestOptionsCredential(ConstantIndex.AtomicAttribute2023)
-                    ).toPresentationExchangeRequest(),
+                    ).toDCQLRequest(),
                     responseMode = OpenIdConstants.ResponseMode.Query,
                     state = expectedState
                 ),
@@ -282,10 +278,9 @@ val RedirectUriClientTest by matrixSuite {
 
             it.verifierOid4vp.validateAuthnResponse(authnResponse.url).getOrThrow()
                 .vpTokenValidationResult.shouldNotBeNull().getOrThrow()
-                .shouldBeInstanceOf<VpTokenValidationResultPresentationExchange>()
-                .inputDescriptorResponseValidations.values.map {
-                    it.getOrThrow()
-                }.shouldBeSingleton().first()
+                .shouldBeInstanceOf<VpTokenValidationResultDCQL>()
+                .credentialQueryResponseValidations.values.flatMap { it.map { it.getOrThrow() } }
+                .shouldBeSingleton().first()
                 .shouldBeInstanceOf<Verifier.VerifyPresentationResult.Success>().apply {
                     vp.freshVerifiableCredentials.shouldNotBeEmpty()
                 }
@@ -309,10 +304,9 @@ val RedirectUriClientTest by matrixSuite {
 
             it.verifierOid4vp.validateAuthnResponse(authnResponseParams).getOrThrow()
                 .vpTokenValidationResult.shouldNotBeNull().getOrThrow()
-                .shouldBeInstanceOf<VpTokenValidationResultPresentationExchange>()
-                .inputDescriptorResponseValidations.values.map {
-                    it.getOrThrow()
-                }.shouldBeSingleton().first()
+                .shouldBeInstanceOf<VpTokenValidationResultDCQL>()
+                .credentialQueryResponseValidations.values.flatMap { it.map { it.getOrThrow() } }
+                .shouldBeSingleton().first()
                 .shouldBeInstanceOf<Verifier.VerifyPresentationResult.Success>()
                 .vp.freshVerifiableCredentials.shouldNotBeEmpty()
         }
@@ -328,10 +322,9 @@ val RedirectUriClientTest by matrixSuite {
 
             it.verifierOid4vp.validateAuthnResponse(authnResponse.url).getOrThrow()
                 .vpTokenValidationResult.shouldNotBeNull().getOrThrow()
-                .shouldBeInstanceOf<VpTokenValidationResultPresentationExchange>()
-                .inputDescriptorResponseValidations.values.map {
-                    it.getOrThrow()
-                }.shouldBeSingleton().first()
+                .shouldBeInstanceOf<VpTokenValidationResultDCQL>()
+                .credentialQueryResponseValidations.values.flatMap { it.map { it.getOrThrow() } }
+                .shouldBeSingleton().first()
                 .shouldBeInstanceOf<Verifier.VerifyPresentationResult.Success>()
                 .vp.freshVerifiableCredentials.shouldNotBeEmpty()
                 .map { it.vcJws }.forEach {
@@ -348,7 +341,7 @@ val RedirectUriClientTest by matrixSuite {
 private fun requestOptionsAtomicAttribute() = OpenId4VpRequestOptions(
     presentationRequest = CredentialPresentationRequestBuilder(
         RequestOptionsCredential(ConstantIndex.AtomicAttribute2023)
-    ).toPresentationExchangeRequest(),
+    ).toDCQLRequest(),
 )
 
 private suspend fun verifySecondProtocolRun(
@@ -363,15 +356,14 @@ private suspend fun verifySecondProtocolRun(
     verifierOid4vp.validateAuthnResponse((authnResponse.getOrThrow() as AuthenticationResponseResult.Redirect).url)
         .getOrThrow()
         .vpTokenValidationResult.shouldNotBeNull().getOrThrow()
-        .shouldBeInstanceOf<VpTokenValidationResultPresentationExchange>()
-        .inputDescriptorResponseValidations.values.map {
-            it.getOrThrow()
-        }.shouldBeSingleton().first()
+        .shouldBeInstanceOf<VpTokenValidationResultDCQL>()
+        .credentialQueryResponseValidations.values.flatMap { it.map { it.getOrThrow() } }
+        .shouldBeSingleton().first()
         .shouldBeInstanceOf<Verifier.VerifyPresentationResult.Success>()
 }
 
 private val defaultRequestOptions = OpenId4VpRequestOptions(
     presentationRequest = CredentialPresentationRequestBuilder(
         RequestOptionsCredential(ConstantIndex.AtomicAttribute2023)
-    ).toPresentationExchangeRequest(),
+    ).toDCQLRequest(),
 )

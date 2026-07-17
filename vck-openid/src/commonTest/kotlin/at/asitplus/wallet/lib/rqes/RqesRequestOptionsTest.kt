@@ -43,10 +43,10 @@ val RqesRequestOptionsTest by matrixSuite {
         test("Authentication request contains transactionData") {
             val requestOptions = buildRequestOptions(transactionDataHashAlgorithms = setOf(SdJwtConstants.SHA_256))
             it.verifierOid4Vp.createPlainAuthnRequest(requestOptions).apply {
-                val inputDescriptor = presentationDefinition.shouldNotBeNull().inputDescriptors.first()
+                val dcqlId = dcqlQuery.shouldNotBeNull().credentials.first().id
                 transactionData.shouldNotBeNull().first().toTransactionData().apply {
                     transactionDataHashAlgorithms shouldNotBe null
-                    credentialIds.first() shouldBe inputDescriptor.id
+                    credentialIds.first() shouldBe dcqlId.string
                 }
             }
         }
@@ -69,7 +69,7 @@ internal suspend fun buildRequestOptions(
                 attributePaths = setOf(DCQLClaimsPathPointer(FAMILY_NAME), DCQLClaimsPathPointer(GIVEN_NAME)),
                 id = credentialId
             )
-        ).toPresentationExchangeRequest(),
+        ).toDCQLRequest(),
         transactionData = listOf(
             getTransactionData(setOf(credentialId), transactionDataHashAlgorithms),
             getTransactionData(setOf(credentialId), transactionDataHashAlgorithms)

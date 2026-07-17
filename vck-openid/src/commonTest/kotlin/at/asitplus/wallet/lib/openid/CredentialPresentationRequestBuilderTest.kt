@@ -128,60 +128,6 @@ val CredentialPresentationRequestBuilderTest by matrixSuite {
         } shouldBe listOf("foo", "bar")
     }
 
-    test("presentation exchange mapping supports literal dot claim names with typed paths") {
-        val presentationRequest = CredentialPresentationRequestBuilder(
-            RequestOptionsCredential(
-                credentialScheme = ConstantIndex.AtomicAttribute2023,
-                representation = SD_JWT,
-                attributePaths = setOf(DCQLClaimsPathPointer("foo.bar")),
-                id = "cred-1"
-            )
-        ).toPresentationExchangeRequest()
-
-        presentationRequest.shouldBeInstanceOf<CredentialPresentationRequest.PresentationExchangeRequest>()
-            .presentationDefinition.inputDescriptors.shouldBeSingleton().first()
-            .shouldBeInstanceOf<DifInputDescriptor>()
-            .constraints.shouldNotBeNull().fields.shouldNotBeNull()
-            .map { it.path.shouldBeSingleton().first() }
-            .shouldContain("$['foo.bar']")
-    }
-
-    test("presentation exchange mapping uses shorthand paths for ordinary claims") {
-        val presentationRequest = CredentialPresentationRequestBuilder(
-            RequestOptionsCredential(
-                credentialScheme = ConstantIndex.AtomicAttribute2023,
-                representation = SD_JWT,
-                attributePaths = setOf(DCQLClaimsPathPointer("given_name")),
-                id = "cred-1"
-            )
-        ).toPresentationExchangeRequest()
-
-        presentationRequest.shouldBeInstanceOf<CredentialPresentationRequest.PresentationExchangeRequest>()
-            .presentationDefinition.inputDescriptors.shouldBeSingleton().first()
-            .shouldBeInstanceOf<DifInputDescriptor>()
-            .constraints.shouldNotBeNull().fields.shouldNotBeNull()
-            .map { it.path.shouldBeSingleton().first() }
-            .shouldContain("$.given_name")
-    }
-
-    test("presentation exchange mapping supports nested typed paths") {
-        val presentationRequest = CredentialPresentationRequestBuilder(
-            RequestOptionsCredential(
-                credentialScheme = ConstantIndex.AtomicAttribute2023,
-                representation = SD_JWT,
-                attributePaths = setOf(DCQLClaimsPathPointer("foo", "bar")),
-                id = "cred-1"
-            )
-        ).toPresentationExchangeRequest()
-
-        presentationRequest.shouldBeInstanceOf<CredentialPresentationRequest.PresentationExchangeRequest>()
-            .presentationDefinition.inputDescriptors.shouldBeSingleton().first()
-            .shouldBeInstanceOf<DifInputDescriptor>()
-            .constraints.shouldNotBeNull().fields.shouldNotBeNull()
-            .map { it.path.shouldBeSingleton().first() }
-            .shouldContain("$.foo.bar")
-    }
-
     test("iso mdoc dcql mapping includes namespace and doctype") {
         val presentationRequest = CredentialPresentationRequestBuilder(
             RequestOptionsCredential(
@@ -227,21 +173,4 @@ val CredentialPresentationRequestBuilderTest by matrixSuite {
         claim.claimName shouldBe claimName
     }
 
-    test("iso mdoc presentation exchange mapping supports explicit namespace claim paths") {
-        val presentationRequest = CredentialPresentationRequestBuilder(
-            RequestOptionsCredential(
-                credentialScheme = ConstantIndex.AtomicAttribute2023,
-                representation = ISO_MDOC,
-                attributePaths = setOf(DCQLClaimsPathPointer("custom.namespace", "custom_claim")),
-                id = "cred-1"
-            )
-        ).toPresentationExchangeRequest()
-
-        presentationRequest.shouldBeInstanceOf<CredentialPresentationRequest.PresentationExchangeRequest>()
-            .presentationDefinition.inputDescriptors.shouldBeSingleton().first()
-            .shouldBeInstanceOf<DifInputDescriptor>()
-            .constraints.shouldNotBeNull().fields.shouldNotBeNull()
-            .map { it.path.shouldBeSingleton().first() }
-            .shouldContain("$['custom.namespace'].custom_claim")
-    }
 }

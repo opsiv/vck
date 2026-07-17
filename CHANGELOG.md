@@ -3,10 +3,13 @@
 Release 8.0.0 (unreleased):
 - Credentials:
     - In `SubjectCredentialStore.StoreEntry` make the `schemeIdentifier` non-nullable. Deserialization of old previously stored entries need to be handled by calling applications.
+- OpenID for Verifiable Presentations:
+    - Remove support for Presentation Exchange, since OpenID4VP 1.0 only supports DCQL
 - Deprecations:
     - Remove code deprecated in 7.0.0, e.g. various `Iso180137AnnexC*` and related classes
+    - Support all classes used for Presentation Exchange requests and so on, e.g., `CredentialPresentationRequest.PresentationExchangeRequest` or `PresentationExchangeCredentialDisclosure` or `CredentialPresentation.PresentationExchangePresentation`
 
-Release 7.0.0:
+Release 7.0.0 (unreleased):
 - Credential definitions:
     - Move `CredentialScheme` out of `ConstantIndex`
     - Provide type alias for `CredentialRepresentation`

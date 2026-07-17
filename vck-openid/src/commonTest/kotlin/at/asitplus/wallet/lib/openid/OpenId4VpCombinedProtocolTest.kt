@@ -182,47 +182,6 @@ val OpenId4VpCombinedProtocolTest by matrixSuite {
             vcFreshnessSummary.freshnessSummary.isFresh.shouldBeTrue()
         }
 
-        test("sd-jwt presex: if not available despite others with correct format or correct attribute, but not both") {
-            it.holderAgent.storeJwtCredential(it.holderKeyMaterial, ConstantIndex.AtomicAttribute2023)
-            it.holderAgent.storeSdJwtCredential(it.holderKeyMaterial, it.mdlScheme)
-            it.holderAgent.storeIsoCredential(it.holderKeyMaterial, ConstantIndex.AtomicAttribute2023)
-
-            val authnRequest = it.verifierOid4vp.createPlainAuthnRequest(
-                OpenId4VpRequestOptions(
-                    CredentialPresentationRequestBuilder(
-                        RequestOptionsCredential(ConstantIndex.AtomicAttribute2023, SD_JWT)
-                    ).toPresentationExchangeRequest()
-                )
-            )
-            it.holderOid4vp.createAuthnResponse(authnRequest.serialize()).getOrThrow()
-                .shouldBeInstanceOf<AuthenticationResponseResult.Redirect>()
-                .error.shouldNotBeNull()
-        }
-
-        test("sd-jwt presex: if available despite others with correct format or correct attribute, but not both") {
-            it.holderAgent.storeJwtCredential(it.holderKeyMaterial, ConstantIndex.AtomicAttribute2023)
-            it.holderAgent.storeSdJwtCredential(it.holderKeyMaterial, ConstantIndex.AtomicAttribute2023)
-            it.holderAgent.storeSdJwtCredential(it.holderKeyMaterial, it.mdlScheme)
-            it.holderAgent.storeIsoCredential(it.holderKeyMaterial, ConstantIndex.AtomicAttribute2023)
-
-            val authnRequest = it.verifierOid4vp.createPlainAuthnRequest(
-                OpenId4VpRequestOptions(
-                    CredentialPresentationRequestBuilder(
-                        RequestOptionsCredential(ConstantIndex.AtomicAttribute2023, SD_JWT)
-                    ).toPresentationExchangeRequest(),
-                ),
-            )
-            val authnResponse = it.holderOid4vp.createAuthnResponse(authnRequest.serialize()).getOrThrow()
-                .shouldBeInstanceOf<AuthenticationResponseResult.Redirect>()
-
-            it.verifierOid4vp.validateAuthnResponse(authnResponse.url).getOrThrow()
-                .vpTokenValidationResult.shouldNotBeNull().getOrThrow()
-                .shouldBeInstanceOf<VpTokenValidationResultPresentationExchange>()
-                .inputDescriptorResponseValidations.values.shouldBeSingleton().first().getOrThrow()
-                .shouldBeInstanceOf<Verifier.VerifyPresentationResult.SuccessSdJwt>()
-                .verifiableCredentialSdJwt.verifiableCredentialType shouldBe ConstantIndex.AtomicAttribute2023.sdJwtType
-        }
-
         test("sd-jwt dcql: if not available despite others with correct format or correct attribute, but not both") {
             it.holderAgent.storeJwtCredential(it.holderKeyMaterial, ConstantIndex.AtomicAttribute2023)
             it.holderAgent.storeSdJwtCredential(it.holderKeyMaterial, it.mdlScheme)
@@ -266,46 +225,6 @@ val OpenId4VpCombinedProtocolTest by matrixSuite {
                 .getOrThrow()
                 .shouldBeInstanceOf<Verifier.VerifyPresentationResult.SuccessSdJwt>()
                 .verifiableCredentialSdJwt.verifiableCredentialType shouldBe ConstantIndex.AtomicAttribute2023.sdJwtType
-        }
-
-        "mdoc presex: if not available despite others with correct format or correct attribute, but not both" {
-            it.holderAgent.storeJwtCredential(it.holderKeyMaterial, ConstantIndex.AtomicAttribute2023)
-            it.holderAgent.storeSdJwtCredential(it.holderKeyMaterial, ConstantIndex.AtomicAttribute2023)
-            it.holderAgent.storeIsoCredential(it.holderKeyMaterial, it.mdlScheme)
-
-            val authnRequest = it.verifierOid4vp.createPlainAuthnRequest(
-                OpenId4VpRequestOptions(
-                    CredentialPresentationRequestBuilder(
-                        RequestOptionsCredential(ConstantIndex.AtomicAttribute2023, ISO_MDOC)
-                    ).toPresentationExchangeRequest(),
-                ),
-            )
-            it.holderOid4vp.createAuthnResponse(authnRequest.serialize()).getOrThrow()
-                .shouldBeInstanceOf<AuthenticationResponseResult.Redirect>()
-                .error.shouldNotBeNull()
-        }
-
-        "mdoc presex: if available despite others with correct format or correct attribute, but not both" {
-            it.holderAgent.storeJwtCredential(it.holderKeyMaterial, ConstantIndex.AtomicAttribute2023)
-            it.holderAgent.storeSdJwtCredential(it.holderKeyMaterial, ConstantIndex.AtomicAttribute2023)
-            it.holderAgent.storeIsoCredential(it.holderKeyMaterial, ConstantIndex.AtomicAttribute2023)
-            it.holderAgent.storeIsoCredential(it.holderKeyMaterial, it.mdlScheme)
-
-            val authnRequest = it.verifierOid4vp.createPlainAuthnRequest(
-                OpenId4VpRequestOptions(
-                    CredentialPresentationRequestBuilder(
-                        RequestOptionsCredential(ConstantIndex.AtomicAttribute2023, ISO_MDOC)
-                    ).toPresentationExchangeRequest(),
-                ),
-            )
-            val authnResponse = it.holderOid4vp.createAuthnResponse(authnRequest.serialize()).getOrThrow()
-                .shouldBeInstanceOf<AuthenticationResponseResult.Redirect>()
-
-            it.verifierOid4vp.validateAuthnResponse(authnResponse.url).getOrThrow()
-                .vpTokenValidationResult.shouldNotBeNull().getOrThrow()
-                .shouldBeInstanceOf<VpTokenValidationResultPresentationExchange>()
-                .inputDescriptorResponseValidations.values.shouldBeSingleton().first().getOrThrow()
-                .shouldBeInstanceOf<Verifier.VerifyPresentationResult.SuccessIso>()
         }
 
         "mdoc dcql: if not available despite others with correct format or correct attribute, but not both" {
@@ -437,7 +356,6 @@ val OpenId4VpCombinedProtocolTest by matrixSuite {
                 .submissionRequirementsValidationResult.isSuccess.shouldBeFalse()
         }
 
-
         "mdoc dcql: presenting correct credentials yields valid submission validation result" {
             it.holderAgent.storeJwtCredential(it.holderKeyMaterial, ConstantIndex.AtomicAttribute2023)
             it.holderAgent.storeSdJwtCredential(it.holderKeyMaterial, ConstantIndex.AtomicAttribute2023)
@@ -481,7 +399,7 @@ val OpenId4VpCombinedProtocolTest by matrixSuite {
                     CredentialPresentationRequestBuilder(
                         RequestOptionsCredential(ConstantIndex.AtomicAttribute2023, PLAIN_JWT),
                         RequestOptionsCredential(it.mdlScheme, ISO_MDOC)
-                    ).toPresentationExchangeRequest(),
+                    ).toDCQLRequest(),
                 ),
             )
             val authnResponse = it.holderOid4vp.createAuthnResponse(authnRequest.serialize()).getOrThrow()
@@ -489,8 +407,8 @@ val OpenId4VpCombinedProtocolTest by matrixSuite {
 
             it.verifierOid4vp.validateAuthnResponse(authnResponse.url).getOrThrow()
                 .vpTokenValidationResult.shouldNotBeNull().getOrThrow()
-                .shouldBeInstanceOf<VpTokenValidationResultPresentationExchange>()
-                .inputDescriptorResponseValidations.values.shouldHaveSize(2)
+                .shouldBeInstanceOf<VpTokenValidationResultDCQL>()
+                .credentialQueryResponseValidations.values.shouldHaveSize(2)
         }
 
         "presentation of multiple SD-JWT credentials in one request/response" {
@@ -512,7 +430,7 @@ val OpenId4VpCombinedProtocolTest by matrixSuite {
                             DCQLClaimsPathPointer(EuPidSdJwtDataElements.GIVEN_NAME)
                         ),
                     )
-                ).toPresentationExchangeRequest(),
+                ).toDCQLRequest(),
             )
             val authnRequest = it.verifierOid4vp.createPlainAuthnRequest(requestOptions)
 
@@ -521,10 +439,9 @@ val OpenId4VpCombinedProtocolTest by matrixSuite {
 
             val groupedResult = it.verifierOid4vp.validateAuthnResponse(authnResponse.url).getOrThrow()
                 .vpTokenValidationResult.shouldNotBeNull().getOrThrow()
-                .shouldBeInstanceOf<VpTokenValidationResultPresentationExchange>()
-                .inputDescriptorResponseValidations.values.map {
-                    it.getOrThrow()
-                }
+                .shouldBeInstanceOf<VpTokenValidationResultDCQL>()
+                .credentialQueryResponseValidations.values.flatMap { it.map { it.getOrThrow() } }
+
             groupedResult.size shouldBe 2
             groupedResult.forEach { result ->
                 result.shouldBeInstanceOf<Verifier.VerifyPresentationResult.SuccessSdJwt>()

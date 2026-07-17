@@ -1,20 +1,8 @@
 package at.asitplus.wallet.lib.agent
 
-import at.asitplus.dif.ConstraintField
-import at.asitplus.jsonpath.core.NodeList
-
-typealias InputDescriptorMatching = Map<ConstraintField, NodeList>
-
-/**
- * Holder-facing view of a Presentation Exchange match.
- *
- * [queryMatchingResult] identifies matches by their index in [credentials]. [inputDescriptorMatches] resolves those
- * indices to actual credentials and exposes the matching JSON paths for disclosure selection.
- */
-@Suppress("DEPRECATION")
-data class HolderPresentationExchangeQueryMatchingResult<Credential: Any>(
+data class HolderIsoDeviceRetrievalQueryMatchingResult<Credential: Any>(
     override val credentials: List<Credential>,
-    val queryMatchingResult: PresentationExchangeQueryMatchingResult
+    val queryMatchingResult: IsoDeviceRetrievalQueryMatchingResult
 ): HolderPresentationRequestMatchingResult<Credential> {
     val inputDescriptorMatches = queryMatchingResult.inputDescriptorMatches.mapValues {
         it.value.mapKeys {
@@ -22,11 +10,6 @@ data class HolderPresentationExchangeQueryMatchingResult<Credential: Any>(
         }
     }
 
-    /**
-     * Selects the first matching credential for every input descriptor and the first matching JSON path for each
-     * constraint field. Callers can instead construct their own map when the user chooses another credential or a
-     * different disclosure. The resulting submission is validated when the presentation is created.
-     */
     fun toDefaultSubmission(): Map<String, PresentationExchangeCredentialDisclosure<Credential>> =
         inputDescriptorMatches.mapNotNull { descriptorCredentialMatches ->
             descriptorCredentialMatches.value.entries.firstNotNullOfOrNull { (credential, matching) ->

@@ -8,15 +8,19 @@ import at.asitplus.wallet.lib.agent.SubjectCredentialStore
 import kotlinx.serialization.Serializable
 
 /**
- * The credentials that are actually being used by the holder to create the verifiable presentation,
- * to fulfill a [CredentialPresentationRequest] from the verifier.
+ * A holder's submission instructions for fulfilling a [CredentialPresentationRequest].
+ *
+ * This is the boundary between matching and response creation: it carries the credentials and disclosures selected
+ * by the user, but not yet the signed presentations or protocol response parameters. A `null` submission asks the
+ * holder to match its store and derive the format-specific default during presentation creation.
  */
 @Serializable
 sealed interface CredentialPresentation {
 
-    /** The request from the verifier */
+    /** The verifier request against which the submission is checked. */
     val presentationRequest: CredentialPresentationRequest
 
+    @Suppress("DEPRECATION")
     @Deprecated("Support for Presentation Exchange been removed from OpenID4VP")
     @Serializable
     data class PresentationExchangePresentation(
@@ -24,10 +28,17 @@ sealed interface CredentialPresentation {
         val inputDescriptorSubmissions: Map<String, PresentationExchangeCredentialDisclosure<SubjectCredentialStore.StoreEntry>>? = null
     ) : CredentialPresentation
 
-    /** DCQL, used by OpenID4VP */
+    /** DCQL submissions keyed by credential query identifier, as required for an OpenID4VP DCQL `vp_token`. */
     @Serializable
     data class DCQLPresentation(
         override val presentationRequest: CredentialPresentationRequest.DCQLRequest,
         val credentialQuerySubmissions: Map<DCQLCredentialQueryIdentifier, List<DCQLCredentialSubmissionOption<SubjectCredentialStore.StoreEntry>>>?,
+    ) : CredentialPresentation
+
+    /** ISO documents selected for a Device Retrieval response. */
+    @Serializable
+    data class IsoDeviceRetrievalPresentation(
+        override val presentationRequest: CredentialPresentationRequest.IsoDeviceRetrieval,
+        val submissions: Collection<Document>? = null // TODO Check if sufficient, maybe also ZKDocuments?
     ) : CredentialPresentation
 }

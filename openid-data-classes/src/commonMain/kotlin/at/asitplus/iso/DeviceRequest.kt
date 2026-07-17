@@ -26,6 +26,7 @@ data class DeviceRequest(
     val version: String,
     @SerialName("docRequests")
     val docRequests: Array<DocRequest>,
+    /** Can be used with version 1.1 to transport additional infos on how to satisfy the request (DCQL like?) */
     @SerialName("deviceRequestInfo")
     @ValueTags(24U)
     val deviceRequestInfo: ByteStringWrapper<DeviceRequestInfo>? = null,

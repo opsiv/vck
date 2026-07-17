@@ -191,6 +191,7 @@ class DcApiVerifier @JvmOverloads constructor(
     private suspend fun createIsoMdocRequest(
         requestOptions: OpenId4VpRequestOptions,
     ): IsoMdocRequest {
+        // TODO Should now be DeviceRequest? Or support both?
         val deviceRequest = ((requestOptions.presentationRequest as? DCQLRequest)?.dcqlQuery
             ?: throw IllegalArgumentException("ISO 18013-7 Annex C requires a DCQL presentation request"))
             .toIso180137AnnexCDeviceRequest()

@@ -1,19 +1,24 @@
 package at.asitplus.wallet.lib.openid
 
 import at.asitplus.wallet.lib.agent.HolderDCQLQueryMatchingResult
+import at.asitplus.wallet.lib.agent.HolderIsoDeviceRetrievalQueryMatchingResult
 import at.asitplus.wallet.lib.agent.HolderPresentationExchangeQueryMatchingResult
 import at.asitplus.wallet.lib.agent.HolderPresentationRequestMatchingResult
 import at.asitplus.wallet.lib.data.CredentialPresentationRequest
 
 /**
- * This interface represents the result of matching a [CredentialPresentationRequest]
- * against a list of available credentials
+ * Result of matching a [CredentialPresentationRequest] against the holder's available credentials.
+ *
+ * The paired [presentationRequest] and [matchingResult] preserve the request language's selection rules. Applications
+ * inspect the corresponding subtype, obtain user consent, and turn the chosen matches into a credential presentation;
+ * this object itself is neither a submission nor a protocol response.
  */
 sealed interface CredentialMatchingResult<Credential : Any> {
     val presentationRequest: CredentialPresentationRequest
     val matchingResult: HolderPresentationRequestMatchingResult<Credential>
 }
 
+@Deprecated("Support for Presentation Exchange been removed from OpenID4VP")
 data class PresentationExchangeMatchingResult<Credential : Any>(
     override val presentationRequest: CredentialPresentationRequest.PresentationExchangeRequest,
     override val matchingResult: HolderPresentationExchangeQueryMatchingResult<Credential>,
@@ -22,4 +27,9 @@ data class PresentationExchangeMatchingResult<Credential : Any>(
 data class DCQLMatchingResult<Credential : Any>(
     override val presentationRequest: CredentialPresentationRequest.DCQLRequest,
     override val matchingResult: HolderDCQLQueryMatchingResult<Credential>,
+) : CredentialMatchingResult<Credential>
+
+data class IsoDeviceRetrievalMatchingResult<Credential : Any>(
+    override val presentationRequest: CredentialPresentationRequest.IsoDeviceRetrieval,
+    override val matchingResult: HolderIsoDeviceRetrievalQueryMatchingResult<Credential>,
 ) : CredentialMatchingResult<Credential>

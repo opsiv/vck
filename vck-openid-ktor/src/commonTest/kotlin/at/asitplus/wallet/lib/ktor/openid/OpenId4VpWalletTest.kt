@@ -65,6 +65,7 @@ import at.asitplus.wallet.lib.openid.DCQLMatchingResult
 import at.asitplus.wallet.lib.openid.OpenId4VpRequestOptions
 import at.asitplus.wallet.lib.openid.OpenId4VpVerifier
 import at.asitplus.wallet.lib.openid.CreationOptions
+import at.asitplus.wallet.lib.openid.IsoDeviceRetrievalMatchingResult
 import at.asitplus.wallet.lib.openid.PresentationExchangeMatchingResult
 import at.asitplus.wallet.lib.openid.VpTokenValidationResultDCQL
 import at.asitplus.wallet.lib.openid.VpTokenValidationResultPresentationExchange
@@ -469,6 +470,8 @@ val OpenId4VpWalletTest by matrixSuite {
             )
 
             val preparationState = it.wallet.startAuthorizationResponsePreparation(it.url).getOrThrow()
+            // Matching returns query-specific candidates, not a Boolean. Build the automatic submission and check it
+            // against the original request to determine whether the store can satisfy the request.
             when (val matchingResult = it.wallet.getMatchingCredentials(preparationState).getOrThrow()) {
                 is DCQLMatchingResult -> matchingResult.presentationRequest.dcqlQuery.checkCredentialSetQueryRequirements(
                     matchingResult.matchingResult.toDefaultSubmission(
@@ -479,6 +482,8 @@ val OpenId4VpWalletTest by matrixSuite {
                 is PresentationExchangeMatchingResult -> matchingResult.presentationRequest.presentationDefinition.inputDescriptors.map {
                     it.id
                 }.toSet() == matchingResult.matchingResult.toDefaultSubmission().keys
+
+                is IsoDeviceRetrievalMatchingResult<*> -> TODO()
             } shouldBe false
         }
     }

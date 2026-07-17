@@ -1,14 +1,17 @@
 package at.asitplus.wallet.lib.agent
 
-import at.asitplus.dif.Constraint
-import at.asitplus.dif.ConstraintField
-import at.asitplus.dif.DifInputDescriptor
-import at.asitplus.dif.PresentationDefinition
+import at.asitplus.data.NonEmptyList.Companion.nonEmptyListOf
 import at.asitplus.iso.Document
 import at.asitplus.iso.MobileSecurityObject
-import at.asitplus.jsonpath.core.NormalizedJsonPath
-import at.asitplus.jsonpath.core.NormalizedJsonPathSegment.NameSegment
 import at.asitplus.openid.ClaimDescription
+import at.asitplus.openid.dcql.DCQLClaimsPathPointer
+import at.asitplus.openid.dcql.DCQLClaimsQueryList
+import at.asitplus.openid.dcql.DCQLCredentialQueryIdentifier
+import at.asitplus.openid.dcql.DCQLCredentialQueryList
+import at.asitplus.openid.dcql.DCQLIsoMdocClaimsQuery
+import at.asitplus.openid.dcql.DCQLIsoMdocCredentialMetadataAndValidityConstraints
+import at.asitplus.openid.dcql.DCQLIsoMdocCredentialQuery
+import at.asitplus.openid.dcql.DCQLQuery
 import at.asitplus.openid.OpenId4VciClaimsPathPointer
 import at.asitplus.signum.indispensable.cosef.CoseSigned
 import at.asitplus.testballoon.matrix.fixture
@@ -18,8 +21,7 @@ import at.asitplus.wallet.lib.data.ConstantIndex.AtomicAttribute2023
 import at.asitplus.wallet.lib.data.ConstantIndex.AtomicAttribute2023.CLAIM_FAMILY_NAME
 import at.asitplus.wallet.lib.data.ConstantIndex.AtomicAttribute2023.CLAIM_GIVEN_NAME
 import at.asitplus.wallet.lib.data.ConstantIndex.CredentialRepresentation.*
-import at.asitplus.wallet.lib.data.CredentialPresentation.PresentationExchangePresentation
-import at.asitplus.wallet.lib.data.CredentialPresentationRequest.PresentationExchangeRequest
+import at.asitplus.wallet.lib.data.CredentialPresentationRequest
 import at.asitplus.wallet.lib.data.CredentialScheme
 import at.asitplus.wallet.lib.data.IsoMdocCredentialScheme
 import at.asitplus.wallet.lib.data.SdJwtCredentialScheme
@@ -92,26 +94,24 @@ val AgentIsoMdocMultipleDocumentsTest by matrixSuite {
         }
     } - {
 
-        test("presex: multiple credentials should be multiple device responses for remote presentation") {
+        test("dcql: multiple credentials should be multiple device responses for remote presentation") {
             val request = it.verifier.createPresentationRequest(
                 calcIsoDeviceSignaturePlain = simpleSigner(it.signer),
-                returnOneDeviceResponse = false,
             )
-            val presentationParameters = it.holder.createPresentation(
+            val presentationParameters = it.holder.createDefaultPresentation(
                 request = request,
-                credentialPresentation = PresentationExchangePresentation(
-                    PresentationExchangeRequest(
-                        PresentationDefinition(
-                            listOf(
-                                inputDescriptor(AtomicAttribute2023, CLAIM_GIVEN_NAME),
-                                inputDescriptor(AtomicAttribute2025, CLAIM_FAMILY_NAME),
-                            )
-                        ),
+                credentialPresentationRequest = CredentialPresentationRequest.DCQLRequest(
+                    DCQLQuery(
+                        credentials = DCQLCredentialQueryList(
+                            isoMdocCredentialQuery(AtomicAttribute2023, CLAIM_GIVEN_NAME),
+                            isoMdocCredentialQuery(AtomicAttribute2025, CLAIM_FAMILY_NAME),
+                        )
                     )
                 )
-            ).getOrThrow().shouldBeInstanceOf<PresentationResponseParameters.PresentationExchangeParameters>()
+            ).getOrThrow().shouldBeInstanceOf<PresentationResponseParameters.DCQLParameters>()
 
-            presentationParameters.presentationResults.shouldHaveSize(2).forEach { result ->
+            val presentationResults = presentationParameters.verifiablePresentations.values.flatten()
+            presentationResults.shouldHaveSize(2).forEach { result ->
                 result.shouldBeInstanceOf<CreatePresentationResult.DeviceResponse>()
                 it.verifier.verifyPresentationIsoMdoc(result.deviceResponse, documentVerifier()).getOrThrow()
                     .shouldBeInstanceOf<Verifier.VerifyPresentationResult.SuccessIso>().apply {
@@ -121,51 +121,7 @@ val AgentIsoMdocMultipleDocumentsTest by matrixSuite {
                         }
                     }
             }
-            val validItems = presentationParameters.presentationResults
-                .filterIsInstance<CreatePresentationResult.DeviceResponse>()
-                .map { resp ->
-                    it.verifier.verifyPresentationIsoMdoc(resp.deviceResponse, documentVerifier()).getOrThrow()
-                }
-                .flatMap { it.shouldBeInstanceOf<Verifier.VerifyPresentationResult.SuccessIso>().documents }
-                .flatMap { it.validItems }
-            validItems.firstOrNull { item -> item.elementIdentifier == CLAIM_GIVEN_NAME }
-                .shouldNotBeNull().elementValue shouldBe "Susanne"
-            validItems.firstOrNull { item -> item.elementIdentifier == CLAIM_FAMILY_NAME }
-                .shouldNotBeNull().elementValue shouldBe "Meier"
-        }
-
-        test("presex: multiple credentials should be one device response for local presentation") {
-            val request = it.verifier.createPresentationRequest(
-                calcIsoDeviceSignaturePlain = simpleSigner(it.signer),
-                returnOneDeviceResponse = true,
-            )
-            val presentationParameters = it.holder.createPresentation(
-                request = request,
-                credentialPresentation = PresentationExchangePresentation(
-                    PresentationExchangeRequest(
-                        PresentationDefinition(
-                            listOf(
-                                inputDescriptor(AtomicAttribute2023, CLAIM_GIVEN_NAME),
-                                inputDescriptor(AtomicAttribute2025, CLAIM_FAMILY_NAME),
-                            )
-                        ),
-                    )
-                ),
-            ).getOrThrow().shouldBeInstanceOf<PresentationResponseParameters.PresentationExchangeParameters>()
-
-            presentationParameters.presentationResults
-                .shouldBeSingleton().firstOrNull()
-                .shouldBeInstanceOf<CreatePresentationResult.DeviceResponse>().let { result ->
-                    it.verifier.verifyPresentationIsoMdoc(result.deviceResponse, documentVerifier()).getOrThrow()
-                        .shouldBeInstanceOf<Verifier.VerifyPresentationResult.SuccessIso>().apply {
-                            documents.shouldHaveSize(2).forEach {
-                                it.freshnessSummary.tokenStatusValidationResult
-                                    .shouldNotBeInstanceOf<TokenStatusValidationResult.Invalid>()
-                            }
-                        }
-                }
-
-            val validItems = presentationParameters.presentationResults
+            val validItems = presentationResults
                 .filterIsInstance<CreatePresentationResult.DeviceResponse>()
                 .map { resp ->
                     it.verifier.verifyPresentationIsoMdoc(resp.deviceResponse, documentVerifier()).getOrThrow()
@@ -180,25 +136,21 @@ val AgentIsoMdocMultipleDocumentsTest by matrixSuite {
     }
 }
 
-private fun inputDescriptor(
+private fun isoMdocCredentialQuery(
     scheme: CredentialScheme,
-    claim: String
-) = DifInputDescriptor(
-    id = scheme.isoDocType!!,
-    constraints = Constraint(
-        fields = setOf(
-            ConstraintField(
-                path = path(scheme, claim)
+    claim: String,
+) = DCQLIsoMdocCredentialQuery(
+    id = DCQLCredentialQueryIdentifier(uuid4().toString()),
+    meta = DCQLIsoMdocCredentialMetadataAndValidityConstraints(
+        doctypeValue = scheme.isoDocType!!,
+    ),
+    claims = DCQLClaimsQueryList(
+        nonEmptyListOf(
+            DCQLIsoMdocClaimsQuery(
+                path = DCQLClaimsPathPointer(scheme.isoNamespace!!, claim)
             )
         )
-    )
-)
-
-private fun path(scheme: CredentialScheme, claimName: String): List<String> = listOf(
-    NormalizedJsonPath(
-        NameSegment(scheme.isoNamespace!!),
-        NameSegment(claimName),
-    ).toString()
+    ),
 )
 
 private fun simpleSigner(

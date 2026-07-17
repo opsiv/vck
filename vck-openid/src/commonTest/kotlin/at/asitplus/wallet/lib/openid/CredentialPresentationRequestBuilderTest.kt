@@ -1,6 +1,5 @@
 package at.asitplus.wallet.lib.openid
 
-import at.asitplus.dif.DifInputDescriptor
 import at.asitplus.openid.dcql.DCQLClaimsPathPointer
 import at.asitplus.openid.dcql.DCQLClaimsPathPointerSegment
 import at.asitplus.openid.dcql.DCQLIsoMdocClaimsQuery
@@ -16,10 +15,12 @@ import at.asitplus.wallet.lib.data.ConstantIndex.AtomicAttribute2023.CLAIM_FAMIL
 import at.asitplus.wallet.lib.data.ConstantIndex.AtomicAttribute2023.CLAIM_GIVEN_NAME
 import at.asitplus.wallet.lib.data.ConstantIndex.CredentialRepresentation.ISO_MDOC
 import at.asitplus.wallet.lib.data.ConstantIndex.CredentialRepresentation.SD_JWT
-import at.asitplus.wallet.lib.data.CredentialPresentationRequest
-import at.asitplus.wallet.lib.data.CredentialScheme
+import at.asitplus.wallet.lib.data.IsoMdocCredentialScheme
+import at.asitplus.wallet.lib.data.SdJwtCredentialScheme
+import io.kotest.assertions.throwables.shouldThrowAny
 import io.kotest.matchers.collections.shouldBeSingleton
 import io.kotest.matchers.collections.shouldContain
+import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
@@ -28,7 +29,9 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 val CredentialPresentationRequestBuilderTest by matrixSuite {
     test("invalid credential scheme for SD-JWT should not throw when creating query") {
         val credential = RequestOptionsCredential(
-            credentialScheme = object : CredentialScheme {
+            credentialScheme = object : SdJwtCredentialScheme {
+                override val sdJwtType: String
+                    get() = "something"
             },
             representation = SD_JWT
         )
@@ -36,23 +39,31 @@ val CredentialPresentationRequestBuilderTest by matrixSuite {
         CredentialPresentationRequestBuilder(credential).apply {
             toDCQLRequest()
             toPresentationExchangeRequest()
+            shouldThrowAny {
+                toIsoDeviceRetrievalRequest()
+            }
         }
     }
 
     test("invalid credential scheme for ISO should not throw when creating query") {
         val credential = RequestOptionsCredential(
-            credentialScheme = object : CredentialScheme {
+            credentialScheme = object : IsoMdocCredentialScheme {
+                override val isoDocType: String
+                    get() = "something"
+                override val isoNamespace: String
+                    get() = "else"
             },
             representation = ISO_MDOC
         )
         CredentialPresentationRequestBuilder(credential).apply {
             toDCQLRequest()
             toPresentationExchangeRequest()
+            toIsoDeviceRetrievalRequest()
         }
     }
 
     test("sd-jwt dcql mapping includes metadata and claims") {
-        val presentationRequest = CredentialPresentationRequestBuilder(
+        val builder = CredentialPresentationRequestBuilder(
             RequestOptionsCredential(
                 credentialScheme = ConstantIndex.AtomicAttribute2023,
                 representation = SD_JWT,
@@ -60,117 +71,135 @@ val CredentialPresentationRequestBuilderTest by matrixSuite {
                 optionalAttributePaths = setOf(DCQLClaimsPathPointer(CLAIM_FAMILY_NAME)),
                 id = "cred-1"
             )
-        ).toDCQLRequest()
-
-        val credentialQuery = presentationRequest.shouldNotBeNull().dcqlQuery
-            .credentials.shouldBeSingleton().first()
-            .shouldBeInstanceOf<DCQLSdJwtCredentialQuery>()
-
-        credentialQuery.meta.shouldBeInstanceOf<DCQLSdJwtCredentialMetadataAndValidityConstraints>()
-            .vctValues shouldContain ConstantIndex.AtomicAttribute2023.sdJwtType
-
-        val claims = credentialQuery.claims.shouldNotBeNull().toList().apply {
-            size shouldBe 2
-        }
-        val claimNames = claims.map {
-            it.shouldBeInstanceOf<DCQLJsonClaimsQuery>().path.segments.first()
-                .shouldBeInstanceOf<DCQLClaimsPathPointerSegment.NameSegment>()
-                .name
-        }.toSet()
-
-        claimNames shouldBe setOf(
-            CLAIM_GIVEN_NAME,
-            CLAIM_FAMILY_NAME
         )
+
+        builder.toDCQLRequest().shouldNotBeNull().dcqlQuery
+            .credentials.shouldBeSingleton().first()
+            .shouldBeInstanceOf<DCQLSdJwtCredentialQuery>().apply {
+                meta.shouldBeInstanceOf<DCQLSdJwtCredentialMetadataAndValidityConstraints>()
+                    .vctValues shouldContain ConstantIndex.AtomicAttribute2023.sdJwtType
+
+                claims.shouldNotBeNull()
+                    .toList().shouldHaveSize(2)
+                    .map {
+                        it.shouldBeInstanceOf<DCQLJsonClaimsQuery>().path.segments.first()
+                            .shouldBeInstanceOf<DCQLClaimsPathPointerSegment.NameSegment>()
+                            .name
+                    }.toSet() shouldBe setOf(CLAIM_GIVEN_NAME, CLAIM_FAMILY_NAME)
+            }
     }
 
     test("sd-jwt dcql mapping supports literal dot claim names with typed paths") {
         val dotClaimName = "foo.bar"
-        val presentationRequest = CredentialPresentationRequestBuilder(
+        val builder = CredentialPresentationRequestBuilder(
             RequestOptionsCredential(
                 credentialScheme = ConstantIndex.AtomicAttribute2023,
                 representation = SD_JWT,
                 attributePaths = setOf(DCQLClaimsPathPointer(dotClaimName)),
                 id = "cred-1"
             )
-        ).toDCQLRequest()
+        )
 
-        val claim = presentationRequest.shouldNotBeNull().dcqlQuery
+        builder.toDCQLRequest().shouldNotBeNull().dcqlQuery
             .credentials.shouldBeSingleton().first()
             .shouldBeInstanceOf<DCQLSdJwtCredentialQuery>()
             .claims.shouldNotBeNull().shouldBeSingleton().first()
             .shouldBeInstanceOf<DCQLJsonClaimsQuery>()
-
-        claim.path.segments.shouldBeSingleton().first()
+            .path.segments.shouldBeSingleton().first()
             .shouldBeInstanceOf<DCQLClaimsPathPointerSegment.NameSegment>()
             .name shouldBe dotClaimName
     }
 
     test("sd-jwt dcql mapping supports nested typed paths") {
-        val presentationRequest = CredentialPresentationRequestBuilder(
+        val builder = CredentialPresentationRequestBuilder(
             RequestOptionsCredential(
                 credentialScheme = ConstantIndex.AtomicAttribute2023,
                 representation = SD_JWT,
                 attributePaths = setOf(DCQLClaimsPathPointer("foo", "bar")),
                 id = "cred-1"
             )
-        ).toDCQLRequest()
+        )
 
-        val segments = presentationRequest.shouldNotBeNull().dcqlQuery
+        builder.toDCQLRequest().shouldNotBeNull().dcqlQuery
             .credentials.shouldBeSingleton().first()
             .shouldBeInstanceOf<DCQLSdJwtCredentialQuery>()
             .claims.shouldNotBeNull().shouldBeSingleton().first()
             .shouldBeInstanceOf<DCQLJsonClaimsQuery>()
-            .path.segments
-
-        segments.map {
-            it.shouldBeInstanceOf<DCQLClaimsPathPointerSegment.NameSegment>().name
-        } shouldBe listOf("foo", "bar")
+            .path.segments.map {
+                it.shouldBeInstanceOf<DCQLClaimsPathPointerSegment.NameSegment>().name
+            } shouldBe listOf("foo", "bar")
     }
 
-    test("iso mdoc dcql mapping includes namespace and doctype") {
-        val presentationRequest = CredentialPresentationRequestBuilder(
+    test("iso mdoc mapping includes namespace and doctype") {
+        val builder = CredentialPresentationRequestBuilder(
             RequestOptionsCredential(
                 credentialScheme = ConstantIndex.AtomicAttribute2023,
                 representation = ISO_MDOC,
                 attributePaths = setOf(DCQLClaimsPathPointer(CLAIM_GIVEN_NAME)),
                 id = "cred-1"
             )
-        ).toDCQLRequest()
+        )
 
-        val credentialQuery = presentationRequest.shouldNotBeNull().dcqlQuery.shouldNotBeNull()
+        builder.toDCQLRequest().shouldNotBeNull().dcqlQuery.shouldNotBeNull()
             .credentials.shouldBeSingleton().first()
-            .shouldBeInstanceOf<DCQLIsoMdocCredentialQuery>()
+            .shouldBeInstanceOf<DCQLIsoMdocCredentialQuery>().apply {
+                meta.shouldBeInstanceOf<DCQLIsoMdocCredentialMetadataAndValidityConstraints>()
+                    .doctypeValue shouldBe ConstantIndex.AtomicAttribute2023.isoDocType
 
-        credentialQuery.meta.shouldBeInstanceOf<DCQLIsoMdocCredentialMetadataAndValidityConstraints>()
-            .doctypeValue shouldBe ConstantIndex.AtomicAttribute2023.isoDocType
+                claims.shouldNotBeNull().shouldBeSingleton().first()
+                    .shouldBeInstanceOf<DCQLIsoMdocClaimsQuery>().apply {
+                        namespace shouldBe ConstantIndex.AtomicAttribute2023.isoNamespace
+                        claimName shouldBe CLAIM_GIVEN_NAME
+                    }
+            }
 
-        val claim = credentialQuery.claims.shouldNotBeNull().shouldBeSingleton().first()
-            .shouldBeInstanceOf<DCQLIsoMdocClaimsQuery>()
-        claim.namespace shouldBe ConstantIndex.AtomicAttribute2023.isoNamespace
-        claim.claimName shouldBe CLAIM_GIVEN_NAME
+        builder.toIsoDeviceRetrievalRequest().shouldNotBeNull().deviceRequest.apply {
+            docRequests.shouldBeSingleton().first()
+                .itemsRequest.value.apply {
+                    docType shouldBe ConstantIndex.AtomicAttribute2023.isoDocType
+                    namespaces.entries.shouldBeSingleton().first().apply {
+                        key shouldBe ConstantIndex.AtomicAttribute2023.isoNamespace
+                        value.entries.shouldBeSingleton().first().apply {
+                            dataElementIdentifier shouldBe CLAIM_GIVEN_NAME
+                        }
+                    }
+                }
+        }
     }
 
-    test("iso mdoc dcql mapping supports explicit namespace claim paths") {
+    test("iso mdoc mapping supports explicit namespace claim paths") {
         val namespace = "custom.namespace"
         val claimName = "custom_claim"
-        val presentationRequest = CredentialPresentationRequestBuilder(
+        val builder = CredentialPresentationRequestBuilder(
             RequestOptionsCredential(
                 credentialScheme = ConstantIndex.AtomicAttribute2023,
                 representation = ISO_MDOC,
                 attributePaths = setOf(DCQLClaimsPathPointer(namespace, claimName)),
                 id = "cred-1"
             )
-        ).toDCQLRequest()
+        )
 
-        val claim = presentationRequest.shouldNotBeNull().dcqlQuery.shouldNotBeNull()
+        builder.toDCQLRequest().shouldNotBeNull().dcqlQuery.shouldNotBeNull()
             .credentials.shouldBeSingleton().first()
             .shouldBeInstanceOf<DCQLIsoMdocCredentialQuery>()
             .claims.shouldNotBeNull().shouldBeSingleton().first()
-            .shouldBeInstanceOf<DCQLIsoMdocClaimsQuery>()
+            .shouldBeInstanceOf<DCQLIsoMdocClaimsQuery>().apply {
+                namespace shouldBe namespace
+                claimName shouldBe claimName
+            }
 
-        claim.namespace shouldBe namespace
-        claim.claimName shouldBe claimName
+        builder.toIsoDeviceRetrievalRequest().shouldNotBeNull().deviceRequest.apply {
+            docRequests.shouldBeSingleton().first()
+                .itemsRequest.value.apply {
+                    docType shouldBe ConstantIndex.AtomicAttribute2023.isoDocType
+                    namespaces.entries.shouldBeSingleton().first().apply {
+                        key shouldBe namespace
+                        value.entries.shouldBeSingleton().first().apply {
+                            dataElementIdentifier shouldBe claimName
+                        }
+                    }
+                }
+        }
     }
 
 }

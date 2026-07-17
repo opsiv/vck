@@ -167,8 +167,13 @@ class HolderAgent @JvmOverloads constructor(
 
         is CredentialPresentation.PresentationExchangePresentation ->
             createPresentationExchangePresentation(request, credentialPresentation)
+
+        is CredentialPresentation.IsoDeviceRetrievalPresentation ->
+            createIsoDeviceRetrievalPresentation(request, credentialPresentation)
     }
 
+    @Suppress("DEPRECATION")
+    @Deprecated("Support for Presentation Exchange been removed from OpenID4VP")
     private suspend fun createPresentationExchangePresentation(
         request: PresentationRequestParameters,
         credentialPresentation: CredentialPresentation.PresentationExchangePresentation,
@@ -221,6 +226,13 @@ class HolderAgent @JvmOverloads constructor(
                 },
             )
         }
+    }
+
+    private suspend fun createIsoDeviceRetrievalPresentation(
+        request: PresentationRequestParameters,
+        credentialPresentation: CredentialPresentation.IsoDeviceRetrievalPresentation,
+    ): KmmResult<PresentationResponseParameters.PresentationExchangeParameters> {
+        TODO()
     }
 
     private suspend fun createDCQLPresentation(

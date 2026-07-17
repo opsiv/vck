@@ -58,8 +58,12 @@ data class IsoDeviceSignatureInput(
     val deviceNameSpaceBytes: ByteStringWrapper<DeviceNameSpaces>,
 )
 
-// TODO Better documentation
-/** Intermediate classes for the response of the presentation protocol */
+/**
+ * Format-specific presentation artifacts created from a [at.asitplus.wallet.lib.data.CredentialPresentation].
+ *
+ * These are intermediate between holder selection and the surrounding protocol response. Protocol integrations use
+ * [vpToken] and, for legacy Presentation Exchange, [presentationSubmission] when constructing their wire response.
+ */
 sealed interface PresentationResponseParameters {
     // TODO Move to vck-openid because it's used only there?
     val vpToken: JsonElement?

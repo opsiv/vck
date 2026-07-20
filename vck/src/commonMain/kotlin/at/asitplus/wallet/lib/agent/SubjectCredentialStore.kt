@@ -256,7 +256,6 @@ interface SubjectCredentialStore {
             override val claimFormat: ClaimFormat = ClaimFormat.MSO_MDOC
         }
 
-        @OptIn(ExperimentalStdlibApi::class)
         @Throws(IllegalArgumentException::class)
         fun getDcApiId(): String = when (this) {
             is Vc -> vc.jwtId

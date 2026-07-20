@@ -8,6 +8,7 @@ import at.asitplus.openid.dcql.DCQLIsoMdocCredentialQuery
 import at.asitplus.openid.dcql.DCQLJsonClaimsQuery
 import at.asitplus.openid.dcql.DCQLSdJwtCredentialMetadataAndValidityConstraints
 import at.asitplus.openid.dcql.DCQLSdJwtCredentialQuery
+import at.asitplus.signum.indispensable.josef.io.joseCompliantSerializer
 import at.asitplus.testballoon.matrix.matrixSuite
 import at.asitplus.wallet.lib.RequestOptionsCredential
 import at.asitplus.wallet.lib.data.ConstantIndex
@@ -15,6 +16,7 @@ import at.asitplus.wallet.lib.data.ConstantIndex.AtomicAttribute2023.CLAIM_FAMIL
 import at.asitplus.wallet.lib.data.ConstantIndex.AtomicAttribute2023.CLAIM_GIVEN_NAME
 import at.asitplus.wallet.lib.data.ConstantIndex.CredentialRepresentation.ISO_MDOC
 import at.asitplus.wallet.lib.data.ConstantIndex.CredentialRepresentation.SD_JWT
+import at.asitplus.wallet.lib.data.CredentialPresentationRequest
 import at.asitplus.wallet.lib.data.IsoMdocCredentialScheme
 import at.asitplus.wallet.lib.data.SdJwtCredentialScheme
 import io.kotest.assertions.throwables.shouldThrowAny
@@ -24,6 +26,8 @@ import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.decodeFromString
 
 
 val CredentialPresentationRequestBuilderTest by matrixSuite {
@@ -200,6 +204,20 @@ val CredentialPresentationRequestBuilderTest by matrixSuite {
                     }
                 }
         }
+    }
+
+    test("ISO Device Retrieval presentation requests survive JSON round trips") {
+        val request = CredentialPresentationRequestBuilder(
+            RequestOptionsCredential(
+                credentialScheme = ConstantIndex.AtomicAttribute2023,
+                representation = ISO_MDOC,
+                attributePaths = setOf(DCQLClaimsPathPointer(CLAIM_GIVEN_NAME)),
+            )
+        ).toIsoDeviceRetrievalRequest().shouldNotBeNull()
+
+        joseCompliantSerializer.decodeFromString<CredentialPresentationRequest>(
+            joseCompliantSerializer.encodeToString<CredentialPresentationRequest>(request)
+        ) shouldBe request
     }
 
 }

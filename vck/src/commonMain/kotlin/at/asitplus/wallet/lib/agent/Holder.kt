@@ -4,6 +4,7 @@ import at.asitplus.KmmResult
 import at.asitplus.dif.ConstraintField
 import at.asitplus.dif.FormatHolder
 import at.asitplus.dif.InputDescriptor
+import at.asitplus.iso.DeviceRequest
 import at.asitplus.iso.IssuerSigned
 import at.asitplus.jsonpath.core.NodeList
 import at.asitplus.jsonpath.core.NormalizedJsonPath
@@ -101,6 +102,19 @@ interface Holder {
     ): KmmResult<HolderPresentationExchangeQueryMatchingResult<SubjectCredentialStore.StoreEntry>>
 
     /**
+     * Matches every document in [deviceRequest] against the credential store. Results preserve `docRequests` order
+     * and contain only credentials that provide every requested namespace and data element. Reader authentication is
+     * transport-specific and is not validated here.
+     *
+     * @param deviceRequest from the ISO Device Retrieval Request
+     * @param filterByIds filter the list of possible credentials by the provided IDs
+     */
+    suspend fun matchDeviceRetrievalAgainstCredentialStore(
+        deviceRequest: DeviceRequest,
+        filterByIds: Collection<String>? = null
+    ): KmmResult<HolderIsoDeviceRetrievalQueryMatchingResult<SubjectCredentialStore.StoreEntry>>
+
+    /**
      * Evaluates a given input descriptor against a store entry.
      *
      * @param fallbackFormatHolder format holder to be used in case there is no format holder in the input descriptor.
@@ -117,7 +131,7 @@ interface Holder {
     ): KmmResult<Map<ConstraintField, NodeList>>
 
     /**
-     * Creates a mapping from the dcql credential query identifiers of the dcql query to matching
+     * Creates a mapping from the DCQL credential query identifiers of the DCQL query to matching
      * credentials and the claims credential set queries to be satisfied.
      *
      * @param filterByIds filter the list of possible credentials by the provided IDs

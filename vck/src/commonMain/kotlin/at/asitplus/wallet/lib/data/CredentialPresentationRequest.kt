@@ -6,12 +6,13 @@ import at.asitplus.dif.DifInputDescriptor
 import at.asitplus.dif.FormatHolder
 import at.asitplus.dif.PresentationDefinition
 import at.asitplus.iso.DeviceRequest
-import at.asitplus.iso.Document
 import at.asitplus.openid.dcql.DCQLCredentialQueryIdentifier
 import at.asitplus.openid.dcql.DCQLCredentialSubmissionOption
 import at.asitplus.openid.dcql.DCQLQuery
+import at.asitplus.wallet.lib.agent.DeviceRequestCredentialDisclosure
 import at.asitplus.wallet.lib.agent.PresentationExchangeCredentialDisclosure
 import at.asitplus.wallet.lib.agent.SubjectCredentialStore
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlin.jvm.JvmInline
 
@@ -64,6 +65,7 @@ sealed interface CredentialPresentationRequest {
     @Serializable
     @JvmInline
     value class DCQLRequest(
+        @SerialName(SerialNames.DCQL_QUERY)
         val dcqlQuery: DCQLQuery
     ) : CredentialPresentationRequest {
         override fun toCredentialPresentation() = toCredentialPresentation(null)
@@ -75,17 +77,26 @@ sealed interface CredentialPresentationRequest {
             credentialQuerySubmissions = credentialQuerySubmissions
         )
 
+        object SerialNames {
+            const val DCQL_QUERY = "dcqlQuery"
+        }
+
     }
 
     /** Device Retrieval according to ISO 18013-5, used for proximity and ISO 18013-7 Annex C over DCAPI. */
     @Serializable
     data class IsoDeviceRetrieval(
+        @SerialName(SerialNames.DEVICE_REQUEST)
         val deviceRequest: DeviceRequest
-    ): CredentialPresentationRequest {
+    ) : CredentialPresentationRequest {
         override fun toCredentialPresentation() = toCredentialPresentation(null)
 
+        object SerialNames {
+            const val DEVICE_REQUEST = "deviceRequest"
+        }
+
         fun toCredentialPresentation(
-            submissions: Collection<Document>? = null // TODO Check if sufficient, maybe also ZKDocuments?
+            submissions: Collection<DeviceRequestCredentialDisclosure<SubjectCredentialStore.StoreEntry>>? = null,
         ): CredentialPresentation = CredentialPresentation.IsoDeviceRetrievalPresentation(
             presentationRequest = this,
             submissions = submissions

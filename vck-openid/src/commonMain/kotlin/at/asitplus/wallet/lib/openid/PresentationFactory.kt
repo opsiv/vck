@@ -39,6 +39,7 @@ import at.asitplus.wallet.lib.agent.PresentationException
 import at.asitplus.wallet.lib.agent.PresentationRequestParameters
 import at.asitplus.wallet.lib.agent.PresentationResponseParameters
 import at.asitplus.wallet.lib.agent.PresentationResponseParameters.DCQLParameters
+import at.asitplus.wallet.lib.agent.PresentationResponseParameters.DeviceRetrievalParameters
 import at.asitplus.wallet.lib.agent.PresentationResponseParameters.PresentationExchangeParameters
 import at.asitplus.wallet.lib.cbor.SignCoseDetachedFun
 import at.asitplus.wallet.lib.data.CredentialPresentation
@@ -76,6 +77,9 @@ internal class PresentationFactory(
         dcApiRequestCallingOrigin: String?,
     ): KmmResult<PresentationResponseParameters> = catching {
         request.verifyResponseType()
+        if (credentialPresentation is CredentialPresentation.IsoDeviceRetrievalPresentation) {
+            throw InvalidRequest("ISO Device Retrieval responses are not OpenID4VP presentations")
+        }
         val responseWillBeEncrypted = jsonWebKeys != null
                 && (clientMetadata?.requestsEncryption() == true || request.responseMode?.requiresEncryption == true)
         val vpRequestParams = PresentationRequestParameters(
@@ -111,6 +115,8 @@ internal class PresentationFactory(
         when (presentation) {
             is DCQLParameters -> presentation.verifyFormatSupport(this)
             is PresentationExchangeParameters -> presentation.verifyFormatSupport(this)
+            is DeviceRetrievalParameters ->
+                throw InvalidRequest("ISO Device Retrieval responses are not OpenID4VP presentations")
         }
     }
 

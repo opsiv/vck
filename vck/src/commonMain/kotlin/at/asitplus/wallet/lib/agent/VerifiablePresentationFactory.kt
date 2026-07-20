@@ -68,6 +68,18 @@ class VerifiablePresentationFactory(
     suspend fun createVerifiablePresentation(
         request: PresentationRequestParameters,
         credentialAndDisclosedAttributes: Map<StoreEntry.Iso, Collection<NormalizedJsonPath>>,
+    ): KmmResult<CreatePresentationResult> = createVerifiablePresentation(
+        request = request,
+        credentialAndDisclosedAttributes = credentialAndDisclosedAttributes.entries.map { it.key to it.value },
+    )
+
+    /**
+     * Creates one Device Response while preserving every selected document and its order. A collection is used rather
+     * than a map because one credential may satisfy more than one `DocRequest`.
+     */
+    suspend fun createVerifiablePresentation(
+        request: PresentationRequestParameters,
+        credentialAndDisclosedAttributes: Collection<Pair<StoreEntry.Iso, Collection<NormalizedJsonPath>>>,
     ): KmmResult<CreatePresentationResult> = catching {
         createIsoPresentation(
             request = request,
@@ -94,7 +106,7 @@ class VerifiablePresentationFactory(
 
             is StoreEntry.Iso -> createIsoPresentation(
                 request = request,
-                credentialAndRequestedClaims = mapOf(credential to disclosedAttributes),
+                credentialAndRequestedClaims = listOf(credential to disclosedAttributes),
             )
         }
     }
@@ -120,7 +132,9 @@ class VerifiablePresentationFactory(
 
             is StoreEntry.Iso -> createIsoPresentation(
                 request = request,
-                credentialAndRequestedClaims = mapOf(credential to disclosedAttributes.toRequestedIsoClaims(credential)),
+                credentialAndRequestedClaims = listOf(
+                    credential to disclosedAttributes.toRequestedIsoClaims(credential)
+                ),
             )
         }
     }
@@ -163,7 +177,7 @@ class VerifiablePresentationFactory(
 
     private suspend fun createIsoPresentation(
         request: PresentationRequestParameters,
-        credentialAndRequestedClaims: Map<StoreEntry.Iso, Collection<NormalizedJsonPath>>,
+        credentialAndRequestedClaims: Collection<Pair<StoreEntry.Iso, Collection<NormalizedJsonPath>>>,
     ) = CreatePresentationResult.DeviceResponse(
         deviceResponse = DeviceResponse(
             version = "1.0",

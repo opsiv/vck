@@ -5,6 +5,10 @@ Release 8.0.0 (unreleased):
     - In `SubjectCredentialStore.StoreEntry` make the `schemeIdentifier` non-nullable. Deserialization of old previously stored entries need to be handled by calling applications.
 - OpenID for Verifiable Presentations:
     - Remove support for Presentation Exchange, since OpenID4VP 1.0 only supports DCQL
+    - Implement direct presentation requests and responses according to ISO 18013-5 Device Retrieval with new subtypes `CredentialPresentationRequest.IsoDeviceRetrieval`, `CredentialPresentation.IsoDeviceRetrievalPresentation`, `IsoDeviceRetrievalMatchingResult` for `CredentialMatchingResult`, `HolderIsoDeviceRetrievalQueryMatchingResult` for `HolderPresentationRequestMatchingResult`, and `PresentationResponseParameters.DeviceRetrievalParameters`
+    - Add `DeviceRequestCredentialDisclosure`, `IsoDeviceRetrievalQueryMatchingResult`, `IsoDeviceRetrievalCredentialMatch`, and `IsoDeviceRetrievalClaimMatch` for ISO submission and matching details
+    - Match every `DocRequest` against stored mdocs, requiring all requested data elements while preserving repeated docTypes and multiple matching credentials; validate explicit submissions and create a single, possibly multi-document `DeviceResponse`
+    - Keep direct ISO Device Retrieval responses separate from OpenID4VP `vp_token` responses, and fix JSON round trips for ISO presentation requests
 - Deprecations:
     - Remove code deprecated in 7.0.0, e.g. various `Iso180137AnnexC*` and related classes
     - Support all classes used for Presentation Exchange requests and so on, e.g., `CredentialPresentationRequest.PresentationExchangeRequest` or `PresentationExchangeCredentialDisclosure` or `CredentialPresentation.PresentationExchangePresentation`

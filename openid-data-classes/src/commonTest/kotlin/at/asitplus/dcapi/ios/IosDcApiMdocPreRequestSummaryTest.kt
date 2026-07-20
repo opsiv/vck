@@ -9,8 +9,6 @@ import at.asitplus.iso.EncryptionParameters
 import at.asitplus.iso.ItemsRequest
 import at.asitplus.iso.ItemsRequestList
 import at.asitplus.iso.SingleItemsRequest
-import at.asitplus.jsonpath.core.NormalizedJsonPath
-import at.asitplus.jsonpath.core.NormalizedJsonPathSegment.NameSegment
 import at.asitplus.signum.indispensable.cosef.CoseEllipticCurve
 import at.asitplus.signum.indispensable.cosef.CoseKey
 import at.asitplus.signum.indispensable.cosef.CoseKeyParams
@@ -113,7 +111,7 @@ val IosDcApiMdocPreRequestSummaryTest by matrixSuite {
         summary.isConsistentWith(rawRequest) shouldBe false
     }
 
-    test("summary converts to DIF input descriptors") {
+    test("summary converts to device request") {
         val summary = IosDcApiMdocPreRequestSummary(
             documentRequests = listOf(
                 IosDcApiMdocPreRequestDocumentRequest(
@@ -128,25 +126,17 @@ val IosDcApiMdocPreRequestSummaryTest by matrixSuite {
             )
         )
 
-        val descriptors = summary.toDifInputDescriptors()
+        val deviceRequest = summary.toDeviceRequest()
 
-        descriptors shouldHaveSize 1
-        descriptors.single().id shouldBe "org.iso.18013.5.1.mDL"
-        val fields = descriptors.single().constraints?.fields.orEmpty()
-        val familyNamePath = NormalizedJsonPath(
-            NameSegment("org.iso.18013.5.1"),
-            NameSegment("family_name"),
-        ).toString()
-        val givenNamePath = NormalizedJsonPath(
-            NameSegment("org.iso.18013.5.1"),
-            NameSegment("given_name"),
-        ).toString()
-        fields shouldHaveSize 2
-        fields.map { it.path.single() }.toSet() shouldBe setOf(familyNamePath, givenNamePath)
-        fields.associate { it.path.single() to it.intentToRetain } shouldBe mapOf(
-            familyNamePath to false,
-            givenNamePath to true
-        )
+        deviceRequest.version shouldBe "1.0"
+        deviceRequest.docRequests shouldHaveSize 1
+        deviceRequest.docRequests.single().itemsRequest.value.apply {
+            docType shouldBe "org.iso.18013.5.1.mDL"
+            namespaces["org.iso.18013.5.1"]!!.entries shouldBe listOf(
+                SingleItemsRequest("family_name", false),
+                SingleItemsRequest("given_name", true),
+            )
+        }
     }
 
     test("changed retain flag is inconsistent") {

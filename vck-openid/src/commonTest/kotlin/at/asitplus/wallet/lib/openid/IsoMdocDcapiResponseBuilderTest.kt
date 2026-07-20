@@ -4,6 +4,7 @@ import at.asitplus.dcapi.DCAPIHandover.Companion.TYPE_DCAPI
 import at.asitplus.dcapi.DCAPIInfo
 import at.asitplus.dcapi.DCAPIResponse
 import at.asitplus.dcapi.IsoMdocResponse
+import at.asitplus.dcapi.request.verifier.DigitalCredentialGetRequest
 import at.asitplus.iso.DeviceAuthentication
 import at.asitplus.iso.DeviceNameSpaces
 import at.asitplus.iso.DeviceSignedItem
@@ -16,9 +17,9 @@ import at.asitplus.openid.ClaimDescription
 import at.asitplus.openid.OidcUserInfo
 import at.asitplus.openid.OidcUserInfoExtended
 import at.asitplus.openid.OpenId4VciClaimsPathPointer
+import at.asitplus.openid.OpenIdConstants
 import at.asitplus.openid.RequestParametersFrom
 import at.asitplus.openid.dcql.DCQLClaimsPathPointer
-import at.asitplus.openid.dcql.toIso180137AnnexCDeviceRequest
 import at.asitplus.signum.indispensable.CryptoPrivateKey
 import at.asitplus.signum.indispensable.CryptoPublicKey
 import at.asitplus.signum.indispensable.SecretExposure
@@ -36,10 +37,9 @@ import at.asitplus.wallet.lib.agent.IssuerAgent
 import at.asitplus.wallet.lib.agent.toStoreCredentialInput
 import at.asitplus.wallet.lib.data.ConstantIndex
 import at.asitplus.wallet.lib.data.CredentialPresentation
+import at.asitplus.wallet.lib.data.CredentialPresentationRequest
 import at.asitplus.wallet.lib.data.IsoMdocCredentialScheme
 import at.asitplus.wallet.lib.data.rfc3986.toUri
-import at.asitplus.wallet.lib.iso.Iso180137AnnexCRequestOptions
-import at.asitplus.wallet.lib.iso.Iso180137AnnexCVerifier
 import io.kotest.assertions.throwables.shouldThrowAny
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.collections.shouldNotBeEmpty
@@ -51,7 +51,6 @@ import kotlin.time.Clock
 import kotlin.time.Duration.Companion.minutes
 
 @OptIn(SecretExposure::class)
-@Suppress("DEPRECATION")
 val IsoMdocDcapiResponseBuilderTest by matrixSuite {
     test("session transcript matches verifier inputs") {
         val fixture = dcapiFixture()
@@ -150,19 +149,18 @@ val IsoMdocDcapiResponseBuilderTest by matrixSuite {
         ).getOrThrow()
 
         val encryptedResponse = IsoMdocDcapiResponseBuilder.buildEncryptedResponse(
-            credentialPresentation = fixture.presentationRequestBuilder.toPresentationExchangeRequest()
-                .toCredentialPresentation() as CredentialPresentation.PresentationExchangePresentation,
+            credentialPresentation = fixture.presentationRequestBuilder.toIsoDeviceRetrievalRequest()
+                .toCredentialPresentation() as CredentialPresentation.IsoDeviceRetrievalPresentation,
             isoMdocWalletRequest = fixture.walletRequest,
             keyMaterial = holderKey,
             holder = holderAgent,
         )
 
-        val verified = fixture.verifier.validateResponse(
-            receivedData = DCAPIResponse(encryptedResponse),
+        val verified = fixture.verifier.validateAuthnResponse(
+            input = IsoMdocResponse(DCAPIResponse(encryptedResponse)),
             externalId = STATE,
-            decryptHpke = ::decryptHpke,
             expectedOrigin = ORIGIN,
-        ).getOrThrow()
+        ).getOrThrow().shouldBeInstanceOf<Iso180137AnnexCWrapper>()
 
         verified.documents.shouldNotBeEmpty()
     }
@@ -205,19 +203,18 @@ val IsoMdocDcapiResponseBuilderTest by matrixSuite {
         }
 
         val encryptedResponse = IsoMdocDcapiResponseBuilder.buildEncryptedResponse(
-            credentialPresentation = fixture.presentationRequestBuilder.toPresentationExchangeRequest()
-                .toCredentialPresentation() as CredentialPresentation.PresentationExchangePresentation,
+            credentialPresentation = fixture.presentationRequestBuilder.toIsoDeviceRetrievalRequest()
+                .toCredentialPresentation() as CredentialPresentation.IsoDeviceRetrievalPresentation,
             isoMdocWalletRequest = fixture.walletRequest,
             keyMaterial = holderKey,
             holder = holderAgent,
         )
 
-        fixture.verifier.validateResponse(
-            receivedData = DCAPIResponse(encryptedResponse),
+        fixture.verifier.validateAuthnResponse(
+            input = IsoMdocResponse(DCAPIResponse(encryptedResponse)),
             externalId = STATE,
-            decryptHpke = ::decryptHpke,
             expectedOrigin = ORIGIN,
-        ).getOrThrow().documents.shouldHaveSize(2)
+        ).getOrThrow().shouldBeInstanceOf<Iso180137AnnexCWrapper>().documents.shouldHaveSize(2)
     }
 
     test("Annex C holder creates presentation request") {
@@ -227,7 +224,7 @@ val IsoMdocDcapiResponseBuilderTest by matrixSuite {
             .createPresentationRequest(fixture.walletRequest)
             .getOrThrow()
 
-        presentationRequest.presentationDefinition.inputDescriptors.single().id shouldBe
+        presentationRequest.deviceRequest.docRequests.single().itemsRequest.value.docType shouldBe
                 ConstantIndex.AtomicAttribute2023.isoDocType
     }
 
@@ -249,16 +246,15 @@ val IsoMdocDcapiResponseBuilderTest by matrixSuite {
             holder = holderAgent,
         ).finalizeResponse(
             request = fixture.walletRequest,
-            credentialPresentation = fixture.presentationRequestBuilder.toPresentationExchangeRequest()
-                .toCredentialPresentation() as CredentialPresentation.PresentationExchangePresentation,
+            credentialPresentation = fixture.presentationRequestBuilder.toIsoDeviceRetrievalRequest()
+                .toCredentialPresentation() as CredentialPresentation.IsoDeviceRetrievalPresentation,
         ).getOrThrow()
 
-        val verified = fixture.verifier.validateResponse(
-            receivedData = DCAPIResponse(encryptedResponse),
+        val verified = fixture.verifier.validateAuthnResponse(
+            input = IsoMdocResponse(DCAPIResponse(encryptedResponse)),
             externalId = STATE,
-            decryptHpke = ::decryptHpke,
             expectedOrigin = ORIGIN,
-        ).getOrThrow()
+        ).getOrThrow().shouldBeInstanceOf<Iso180137AnnexCWrapper>()
 
         verified.documents.shouldNotBeEmpty()
     }
@@ -283,18 +279,20 @@ val IsoMdocDcapiResponseBuilderTest by matrixSuite {
         val state = dcApiHolder.startAuthorizationResponsePreparation(fixture.walletRequest)
             .getOrThrow()
             .shouldBeInstanceOf<DcApiPreparationState.Iso180137AnnexC>()
+        state.presentationRequest.shouldBeInstanceOf<CredentialPresentationRequest.IsoDeviceRetrieval>()
+        dcApiHolder.getMatchingCredentials(state).getOrThrow()
+            .shouldBeInstanceOf<IsoDeviceRetrievalMatchingResult<*>>()
         val response = dcApiHolder.finalizeAuthorizationResponse(
             state = state,
-            credentialPresentation = fixture.presentationRequestBuilder.toPresentationExchangeRequest()
+            credentialPresentation = fixture.presentationRequestBuilder.toIsoDeviceRetrievalRequest()
                 .toCredentialPresentation(),
         ).getOrThrow().shouldBeInstanceOf<IsoMdocResponse>()
 
-        fixture.verifier.validateResponse(
-            receivedData = response.data,
+        fixture.verifier.validateAuthnResponse(
+            input = response,
             externalId = STATE,
-            decryptHpke = ::decryptHpke,
             expectedOrigin = ORIGIN,
-        ).getOrThrow().documents.shouldNotBeEmpty()
+        ).getOrThrow().shouldBeInstanceOf<Iso180137AnnexCWrapper>().documents.shouldNotBeEmpty()
     }
 }
 
@@ -308,14 +306,24 @@ private suspend fun dcapiFixture(
     )
 ): DcapiFixture {
     val verifierKey = EphemeralKeyWithoutCert()
-    val verifier = Iso180137AnnexCVerifier(decryptionKeyMaterial = verifierKey)
-    val presentationRequestBuilder = CredentialPresentationRequestBuilder(requestOptions)
-    val isoRequest = verifier.createRequest(
-        Iso180137AnnexCRequestOptions(
-            deviceRequest = presentationRequestBuilder.toDCQLRequest()!!.dcqlQuery.toIso180137AnnexCDeviceRequest(),
-            state = STATE,
-        )
+    val verifier = DcApiVerifier(
+        clientIdScheme = ClientIdScheme.PreRegistered(
+            clientId = "dc-api-rp",
+            redirectUri = "https://verifier.example.com/callback",
+        ),
+        decryptionKeyMaterial = verifierKey,
     )
+    val presentationRequestBuilder = CredentialPresentationRequestBuilder(requestOptions)
+    val isoRequest = verifier.createAuthnRequest(
+        OpenId4VpRequestOptions(
+            presentationRequest = presentationRequestBuilder.toIsoDeviceRetrievalRequest(),
+            responseMode = OpenIdConstants.ResponseMode.DcApi,
+            expectedOrigins = listOf(ORIGIN),
+            state = STATE,
+        ),
+        DcApiCreationOptions.Iso180137AnnexC,
+    ).getOrThrow().digital.requests.single()
+        .shouldBeInstanceOf<DigitalCredentialGetRequest.IsoMdoc>().data
     return DcapiFixture(
         verifier = verifier,
         verifierKey = verifierKey,
@@ -360,7 +368,7 @@ private object SecondAtomicAttribute : IsoMdocCredentialScheme {
 }
 
 private data class DcapiFixture(
-    val verifier: Iso180137AnnexCVerifier,
+    val verifier: DcApiVerifier,
     val verifierKey: EphemeralKeyWithoutCert,
     val presentationRequestBuilder: CredentialPresentationRequestBuilder,
     val walletRequest: RequestParametersFrom.IsoMdocDcApi,

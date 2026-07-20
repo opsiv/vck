@@ -118,8 +118,9 @@ val AgentIsoMdocMultipleDocumentsTest by matrixSuite {
 
             presentationParameters.verifiablePresentations.values.flatten()
                 .shouldHaveSize(2).apply {
-                    forEach { _ ->
-                        shouldBeInstanceOf<CreatePresentationResult.DeviceResponse>()
+                    forEach { presentation ->
+                        val deviceResponse = presentation
+                            .shouldBeInstanceOf<CreatePresentationResult.DeviceResponse>().deviceResponse
                         scope.verifier.verifyPresentationIsoMdoc(deviceResponse, documentVerifier()).getOrThrow()
                             .shouldBeInstanceOf<Verifier.VerifyPresentationResult.SuccessIso>().apply {
                                 documents.shouldBeSingleton().forEach {
@@ -133,7 +134,7 @@ val AgentIsoMdocMultipleDocumentsTest by matrixSuite {
                 .map { resp ->
                     scope.verifier.verifyPresentationIsoMdoc(resp.deviceResponse, documentVerifier()).getOrThrow()
                 }
-                .flatMap { scope.shouldBeInstanceOf<Verifier.VerifyPresentationResult.SuccessIso>().documents }
+                .flatMap { it.shouldBeInstanceOf<Verifier.VerifyPresentationResult.SuccessIso>().documents }
                 .flatMap { it.validItems }.apply {
                     firstOrNull { item -> item.elementIdentifier == CLAIM_GIVEN_NAME }
                         .shouldNotBeNull().elementValue shouldBe "Susanne"

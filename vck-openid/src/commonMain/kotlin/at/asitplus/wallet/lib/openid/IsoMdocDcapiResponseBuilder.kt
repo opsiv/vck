@@ -16,7 +16,6 @@ import at.asitplus.signum.indispensable.cosef.io.ByteStringWrapper
 import at.asitplus.signum.indispensable.cosef.io.coseCompliantSerializer
 import at.asitplus.signum.indispensable.io.Base64UrlStrict
 import at.asitplus.signum.supreme.asymmetric.HPKE
-import at.asitplus.wallet.lib.agent.CreatePresentationResult
 import at.asitplus.wallet.lib.agent.Holder
 import at.asitplus.wallet.lib.agent.KeyMaterial
 import at.asitplus.wallet.lib.agent.PresentationException
@@ -54,7 +53,7 @@ object IsoMdocDcapiResponseBuilder {
 
     /** Creates the device response, applies device authentication, and HPKE-encrypts it for the verifier. */
     suspend fun buildEncryptedResponse(
-        credentialPresentation: CredentialPresentation.PresentationExchangePresentation,
+        credentialPresentation: CredentialPresentation.IsoDeviceRetrievalPresentation,
         isoMdocWalletRequest: RequestParametersFrom.IsoMdocDcApi,
         keyMaterial: KeyMaterial,
         holder: Holder,
@@ -94,26 +93,18 @@ object IsoMdocDcapiResponseBuilder {
             credentialPresentation = credentialPresentation,
         )
 
-        val presentation =
-            presentationResult.getOrThrow() as PresentationResponseParameters.PresentationExchangeParameters
-
-        val deviceResponse = when (val result = presentation.presentationResults.singleOrNull()
-            ?: throw PresentationException(
-                IllegalStateException("Annex C presentation must return exactly one device response")
-            )) {
-            is CreatePresentationResult.DeviceResponse -> result.deviceResponse
-            else -> throw PresentationException(IllegalStateException("Must be a device response"))
+        val result = presentationResult.getOrThrow()
+        require(result is PresentationResponseParameters.DeviceRetrievalParameters) {
+            "Result is not DeviceRetrievalParameters"
         }
-        val deviceResponseSerialized = coseCompliantSerializer.encodeToByteArray(deviceResponse)
+        val deviceResponseSerialized = coseCompliantSerializer.encodeToByteArray(result.deviceResponse)
 
         val encryptionParameters = isoMdocRequest.encryptionInfo.encryptionParameters
-
-        val publicKey = try {
-            encryptionParameters.recipientPublicKey.toCryptoPublicKey().getOrThrow() as CryptoPublicKey.EC
-        } catch (e: Throwable) {
-            Napier.e("Could not extract public key", e)
-            throw IllegalArgumentException("Could not extract public key")
+        val publicKey = encryptionParameters.recipientPublicKey.toCryptoPublicKey().getOrThrow()
+        require(publicKey is CryptoPublicKey.EC) {
+            "Could not extract EC public key"
         }
+
         val encodedSessionTranscript = coseCompliantSerializer.encodeToByteArray(sessionTranscript)
         val sealed = hpke.SealBase(
             pkR = publicKey,

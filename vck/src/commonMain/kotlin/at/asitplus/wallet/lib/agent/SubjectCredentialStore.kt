@@ -270,6 +270,18 @@ interface SubjectCredentialStore {
 }
 
 /**
+ * Identifier used to match presentation requests. Store entries serialized before [SubjectCredentialStore.StoreEntry.schemeIdentifier]
+ * was introduced keep it `null`, so fall back to the identifier carried by the credential itself: mdoc `docType`,
+ * SD-JWT `vct`, or W3C VC type.
+ */
+internal val SubjectCredentialStore.StoreEntry.schemeIdentifierForMatching: String?
+    get() = schemeIdentifier ?: when (this) {
+        is SubjectCredentialStore.StoreEntry.Iso -> issuerSigned.issuerAuth.payload?.docType
+        is SubjectCredentialStore.StoreEntry.SdJwt -> sdJwt.verifiableCredentialType
+        is SubjectCredentialStore.StoreEntry.Vc -> vc.vc.type.firstOrNull { it != VERIFIABLE_CREDENTIAL }
+    }
+
+/**
  * Holds all information needed to refresh a credential, pass it to `OpenId4VciClient.refreshCredentialReturningResult`.
  */
 @Serializable

@@ -33,6 +33,7 @@ import at.asitplus.wallet.eupidsdjwt.EuPidSdJwtDataElements
 import at.asitplus.wallet.lib.RequestOptionsCredential
 import at.asitplus.wallet.lib.agent.ClaimToBeIssued
 import at.asitplus.wallet.lib.agent.CredentialToBeIssued
+import at.asitplus.wallet.lib.agent.DCQLMatchingResult
 import at.asitplus.wallet.lib.agent.EphemeralKeyWithSelfSignedCert
 import at.asitplus.wallet.lib.agent.EphemeralKeyWithoutCert
 import at.asitplus.wallet.lib.agent.HolderAgent
@@ -61,20 +62,17 @@ import at.asitplus.wallet.lib.openid.AuthenticationResponseResult
 import at.asitplus.wallet.lib.openid.AuthnResponseResult
 import at.asitplus.wallet.lib.openid.ClientIdScheme
 import at.asitplus.wallet.lib.openid.CredentialPresentationRequestBuilder
-import at.asitplus.wallet.lib.openid.DCQLMatchingResult
 import at.asitplus.wallet.lib.openid.OpenId4VpRequestOptions
 import at.asitplus.wallet.lib.openid.OpenId4VpVerifier
 import at.asitplus.wallet.lib.openid.CreationOptions
-import at.asitplus.wallet.lib.openid.IsoDeviceRetrievalMatchingResult
-import at.asitplus.wallet.lib.openid.PresentationExchangeMatchingResult
 import at.asitplus.wallet.lib.openid.VpTokenValidationResultDCQL
 import at.asitplus.wallet.lib.openid.VpTokenValidationResultPresentationExchange
 import at.asitplus.wallet.mdl.MDL_DOCTYPE
 import com.benasher44.uuid.uuid4
 import io.github.aakira.napier.Napier
+import io.kotest.assertions.throwables.shouldThrowAny
 import io.kotest.matchers.collections.shouldBeSingleton
 import io.kotest.matchers.nulls.shouldNotBeNull
-import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.ktor.client.*
@@ -470,22 +468,16 @@ val OpenId4VpWalletTest by matrixSuite {
             )
 
             val preparationState = it.wallet.startAuthorizationResponsePreparation(it.url).getOrThrow()
+
             // Matching returns query-specific candidates, not a Boolean. Build the automatic submission and check it
             // against the original request to determine whether the store can satisfy the request.
-            when (val matchingResult = it.wallet.getMatchingCredentials(preparationState).getOrThrow()) {
-                is DCQLMatchingResult -> matchingResult.presentationRequest.dcqlQuery.checkCredentialSetQueryRequirements(
-                    matchingResult.matchingResult.toDefaultSubmission(
-                        matchingResult.presentationRequest.dcqlQuery
-                    ).getOrThrow().keys
-                ).isSuccess
-
-                is PresentationExchangeMatchingResult -> matchingResult.presentationRequest.presentationDefinition.inputDescriptors.map {
-                    it.id
-                }.toSet() == matchingResult.matchingResult.toDefaultSubmission().keys
-
-                // Not exercised here: this test only issues DCQL and Presentation Exchange requests.
-                is IsoDeviceRetrievalMatchingResult<*> -> false
-            } shouldBe false
+            it.wallet.getMatchingCredentials(preparationState).getOrThrow()
+                .shouldBeInstanceOf<DCQLMatchingResult<*>>().apply {
+                    val submission = matchingResult.toDefaultSubmission(presentationRequest.dcqlQuery).getOrThrow()
+                    shouldThrowAny {
+                        presentationRequest.dcqlQuery.checkCredentialSetQueryRequirements(submission.keys)
+                    }
+                }
         }
     }
 }

@@ -68,7 +68,7 @@ class VerifiablePresentationFactory(
     suspend fun createVerifiablePresentation(
         request: PresentationRequestParameters,
         credentialAndDisclosedAttributes: Map<StoreEntry.Iso, Collection<NormalizedJsonPath>>,
-    ): KmmResult<CreatePresentationResult> = createVerifiablePresentation(
+    ): KmmResult<CreatePresentationResult.DeviceResponse> = createVerifiablePresentation(
         request = request,
         credentialAndDisclosedAttributes = credentialAndDisclosedAttributes.entries.map { it.key to it.value },
     )
@@ -80,7 +80,7 @@ class VerifiablePresentationFactory(
     suspend fun createVerifiablePresentation(
         request: PresentationRequestParameters,
         credentialAndDisclosedAttributes: Collection<Pair<StoreEntry.Iso, Collection<NormalizedJsonPath>>>,
-    ): KmmResult<CreatePresentationResult> = catching {
+    ): KmmResult<CreatePresentationResult.DeviceResponse> = catching {
         createIsoPresentation(
             request = request,
             credentialAndRequestedClaims = credentialAndDisclosedAttributes,

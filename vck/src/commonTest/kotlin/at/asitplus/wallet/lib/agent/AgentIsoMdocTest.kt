@@ -133,8 +133,10 @@ val AgentIsoMdocTest by matrixSuite {
                         ).getOrThrow().toStoreCredentialInput()
                     ).getOrThrow()
 
-                    it.holder.matchDeviceRetrievalAgainstCredentialStore(isoDeviceRequest(CLAIM_GIVEN_NAME))
-                        .getOrThrow().documentMatches.shouldBeSingleton().single().shouldHaveSize(2)
+                    it.holder.matchPresentationRequestAgainstCredentialStore(
+                        CredentialPresentationRequest.IsoDeviceRetrieval(isoDeviceRequest(CLAIM_GIVEN_NAME))
+                    ).getOrThrow().shouldBeInstanceOf<IsoDeviceRetrievalMatchingResult<*>>()
+                        .matchingResult.documentMatches.shouldBeSingleton().single().shouldHaveSize(2)
                 }
             }
 

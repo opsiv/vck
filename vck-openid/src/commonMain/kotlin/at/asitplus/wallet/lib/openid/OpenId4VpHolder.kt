@@ -35,6 +35,7 @@ import at.asitplus.signum.indispensable.josef.toJwsAlgorithm
 import at.asitplus.signum.supreme.UserInitiatedCancellationReason
 import at.asitplus.wallet.lib.RemoteResourceRetrieverFunction
 import at.asitplus.wallet.lib.RemoteResourceRetrieverInput
+import at.asitplus.wallet.lib.agent.CredentialMatchingResult as HolderCredentialMatchingResult
 import at.asitplus.wallet.lib.agent.EphemeralKeyWithoutCert
 import at.asitplus.wallet.lib.agent.Holder
 import at.asitplus.wallet.lib.agent.HolderAgent
@@ -388,44 +389,13 @@ class OpenId4VpHolder @JvmOverloads constructor(
      */
     suspend fun getMatchingCredentials(
         preparationState: AuthorizationResponsePreparationState,
-    ): KmmResult<CredentialMatchingResult<SubjectCredentialStore.StoreEntry>> = catching {
-        when (val presentationRequest = preparationState.credentialPresentationRequest) {
-            is CredentialPresentationRequest.DCQLRequest ->
-                holder.matchDCQLQueryAgainstCredentialStoreV2(
-                    dcqlQuery = presentationRequest.dcqlQuery,
-                    filterByIds = preparationState.request.credentialIds()
-                ).getOrThrow().let {
-                    DCQLMatchingResult(
-                        presentationRequest = presentationRequest,
-                        matchingResult = it,
-                    )
-                }
-
-            is CredentialPresentationRequest.PresentationExchangeRequest ->
-                holder.matchInputDescriptorsAgainstCredentialStoreV2(
-                    inputDescriptors = presentationRequest.presentationDefinition.inputDescriptors,
-                    fallbackFormatHolder = presentationRequest.fallbackFormatHolder,
-                    filterByIds = preparationState.request.credentialIds()
-                ).getOrThrow().let {
-                    PresentationExchangeMatchingResult(
-                        presentationRequest = presentationRequest,
-                        matchingResult = it
-                    )
-                }
-
-            is CredentialPresentationRequest.IsoDeviceRetrieval ->
-                holder.matchDeviceRetrievalAgainstCredentialStore(
-                    deviceRequest = presentationRequest.deviceRequest,
-                    filterByIds = preparationState.request.credentialIds(),
-                ).getOrThrow().let {
-                    IsoDeviceRetrievalMatchingResult(
-                        presentationRequest = presentationRequest,
-                        matchingResult = it
-                    )
-                }
-
-            null -> throw InvalidRequest("No credential presentation request is available")
-        }
+    ): KmmResult<HolderCredentialMatchingResult<SubjectCredentialStore.StoreEntry>> = catching {
+        val presentationRequest = preparationState.credentialPresentationRequest
+            ?: throw InvalidRequest("No credential presentation request is available")
+        holder.matchPresentationRequestAgainstCredentialStore(
+            presentationRequest = presentationRequest,
+            filterByIds = preparationState.request.credentialIds(),
+        ).getOrThrow()
     }
 
     /**

@@ -38,7 +38,10 @@ data class PresentationRequestParameters(
      * (OpenID4VP with ISO/IEC 18013-7)
      */
     val calcIsoDeviceSignaturePlain: (suspend (input: IsoDeviceSignatureInput) -> CoseSigned<ByteArray>?) = { null },
-    @Deprecated("This value is given by `DCQLCredentialQuery.multiple` or by the request being ISO Device Retrieval")
+    @Deprecated(
+        "Only applies to deprecated Presentation Exchange. DCQL uses `DCQLCredentialQuery.multiple`; " +
+                "ISO Device Retrieval always creates one DeviceResponse."
+    )
     val returnOneDeviceResponse: Boolean = false
 ) {
     /**

@@ -1,6 +1,7 @@
 package at.asitplus.wallet.lib.agent
 
 import at.asitplus.KmmResult
+import at.asitplus.catching
 import at.asitplus.dif.ConstraintField
 import at.asitplus.dif.FormatHolder
 import at.asitplus.dif.InputDescriptor
@@ -82,6 +83,40 @@ interface Holder {
         request: PresentationRequestParameters,
         credentialPresentationRequest: CredentialPresentationRequest,
     ): KmmResult<PresentationResponseParameters>
+
+    /** Matches any supported presentation request while preserving its request-specific result type. */
+    @Suppress("DEPRECATION")
+    suspend fun matchPresentationRequestAgainstCredentialStore(
+        presentationRequest: CredentialPresentationRequest,
+        filterByIds: Collection<String>? = null,
+    ): KmmResult<CredentialMatchingResult<SubjectCredentialStore.StoreEntry>> = catching {
+        when (presentationRequest) {
+            is CredentialPresentationRequest.DCQLRequest -> DCQLMatchingResult(
+                presentationRequest = presentationRequest,
+                matchingResult = matchDCQLQueryAgainstCredentialStoreV2(
+                    dcqlQuery = presentationRequest.dcqlQuery,
+                    filterByIds = filterByIds,
+                ).getOrThrow(),
+            )
+
+            is CredentialPresentationRequest.PresentationExchangeRequest -> PresentationExchangeMatchingResult(
+                presentationRequest = presentationRequest,
+                matchingResult = matchInputDescriptorsAgainstCredentialStoreV2(
+                    inputDescriptors = presentationRequest.presentationDefinition.inputDescriptors,
+                    fallbackFormatHolder = presentationRequest.fallbackFormatHolder,
+                    filterByIds = filterByIds,
+                ).getOrThrow(),
+            )
+
+            is CredentialPresentationRequest.IsoDeviceRetrieval -> IsoDeviceRetrievalMatchingResult(
+                presentationRequest = presentationRequest,
+                matchingResult = matchDeviceRetrievalAgainstCredentialStore(
+                    deviceRequest = presentationRequest.deviceRequest,
+                    filterByIds = filterByIds,
+                ).getOrThrow(),
+            )
+        }
+    }
 
     /**
      * Creates a mapping from the input descriptors of the presentation definition to matching

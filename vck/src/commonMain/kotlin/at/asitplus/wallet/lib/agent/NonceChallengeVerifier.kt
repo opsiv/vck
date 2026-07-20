@@ -27,7 +27,12 @@ class NonceChallengeVerifier @JvmOverloads constructor(
 ) : Verifier by verifier,
     NonceService by nonceService {
 
-    /** Holder-facing presentation request input using a fresh challenge. */
+    /**
+     * Holder-facing presentation request input using a fresh challenge.
+     *
+     * @param returnOneDeviceResponse compatibility switch for deprecated Presentation Exchange only. Direct ISO
+     * Device Retrieval always returns one DeviceResponse.
+     */
     suspend fun createPresentationRequest(
         transactionData: List<TransactionDataBase64Url>? = null,
         calcIsoDeviceSignaturePlain: suspend (IsoDeviceSignatureInput) -> CoseSigned<ByteArray>? = { null },

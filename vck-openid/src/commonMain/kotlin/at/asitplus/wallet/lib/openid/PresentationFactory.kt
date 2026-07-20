@@ -32,6 +32,7 @@ import at.asitplus.wallet.lib.agent.PresentationException
 import at.asitplus.wallet.lib.agent.PresentationRequestParameters
 import at.asitplus.wallet.lib.agent.PresentationResponseParameters
 import at.asitplus.wallet.lib.agent.PresentationResponseParameters.DCQLParameters
+import at.asitplus.wallet.lib.agent.PresentationResponseParameters.DeviceRetrievalParameters
 import at.asitplus.wallet.lib.agent.PresentationResponseParameters.PresentationExchangeParameters
 import at.asitplus.wallet.lib.cbor.SignCoseDetachedFun
 import at.asitplus.wallet.lib.data.CredentialPresentation
@@ -70,6 +71,9 @@ internal class PresentationFactory(
         val nonce = requireNotNull(state.request.parameters.nonce) {
             "nonce parameter is missing in ${state.request.parameters}"
         }
+        if (credentialPresentation is CredentialPresentation.IsoDeviceRetrievalPresentation) {
+            throw InvalidRequest("ISO Device Retrieval responses are not OpenID4VP presentations")
+        }
         val vpRequestParams = PresentationRequestParameters(
             nonce = nonce,
             audience = state.audience,
@@ -106,6 +110,8 @@ internal class PresentationFactory(
         when (presentation) {
             is DCQLParameters -> presentation.verifyFormatSupport(this)
             is PresentationExchangeParameters -> presentation.verifyFormatSupport(this)
+            is DeviceRetrievalParameters ->
+                throw InvalidRequest("ISO Device Retrieval responses are not OpenID4VP presentations")
         }
     }
 

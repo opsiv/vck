@@ -8,6 +8,8 @@ import at.asitplus.dif.FormatHolder
 import at.asitplus.dif.InputDescriptor
 import at.asitplus.dif.PresentationSubmission
 import at.asitplus.dif.PresentationSubmissionDescriptor
+import at.asitplus.iso.DeviceRequest
+import at.asitplus.iso.ItemsRequest
 import at.asitplus.jsonpath.core.NodeList
 import at.asitplus.jsonpath.core.NormalizedJsonPath
 import at.asitplus.openid.dcql.DCQLCredentialQueryMatchingResult
@@ -29,6 +31,7 @@ import at.asitplus.wallet.lib.jws.JwsHeaderNone
 import at.asitplus.wallet.lib.jws.SignJwt
 import at.asitplus.wallet.lib.jws.SignJwtFun
 import at.asitplus.wallet.lib.procedures.dcql.DCQLQueryAdapter
+import at.asitplus.wallet.lib.procedures.iso.DeviceRetrievalInputEvaluator
 import com.benasher44.uuid.uuid4
 import io.github.aakira.napier.Napier
 import kotlinx.coroutines.async
@@ -231,8 +234,47 @@ class HolderAgent @JvmOverloads constructor(
     private suspend fun createIsoDeviceRetrievalPresentation(
         request: PresentationRequestParameters,
         credentialPresentation: CredentialPresentation.IsoDeviceRetrievalPresentation,
-    ): KmmResult<PresentationResponseParameters.PresentationExchangeParameters> {
-        TODO()
+    ): KmmResult<PresentationResponseParameters.DeviceRetrievalParameters> = catching {
+        val deviceRequest = credentialPresentation.presentationRequest.deviceRequest
+        val submissions = credentialPresentation.submissions
+            ?: matchDeviceRetrievalAgainstCredentialStore(deviceRequest).getOrThrow()
+                .toDefaultSubmission().getOrThrow()
+
+        require(submissions.size == deviceRequest.docRequests.size) {
+            "A submission is required for every document request"
+        }
+        val submissionsByRequest = submissions.associateBy { it.docRequestIndex }
+        require(submissionsByRequest.size == submissions.size) { "A document request may only be submitted once" }
+
+        val selectedCredentials = deviceRequest.docRequests.mapIndexed { index, docRequest ->
+            val submission = submissionsByRequest[index]
+                ?: throw PresentationException("Missing submission for document request at index $index")
+            val credential = submission.credential as? StoreEntry.Iso
+                ?: throw PresentationException("Document request at index $index requires an ISO mdoc credential")
+            val itemsRequest = docRequest.itemsRequest.value
+            require(credential.schemeIdentifier == itemsRequest.docType) {
+                "Credential docType does not match document request at index $index"
+            }
+            val requiredPaths = DeviceRetrievalInputEvaluator(
+                itemsRequest = itemsRequest,
+                issuerSigned = credential.issuerSigned,
+            ).getOrThrow().map {
+                NormalizedJsonPath() + it.namespace + it.claimName
+            }.toSet()
+            require(
+                submission.disclosedAttributes.map { it.toString() }.toSet() ==
+                        requiredPaths.map { it.toString() }.toSet()
+            ) {
+                "Disclosed attributes do not exactly match document request at index $index"
+            }
+            credential to submission.disclosedAttributes
+        }
+
+        val result = verifiablePresentationFactory.createVerifiablePresentation(
+            request = request,
+            credentialAndDisclosedAttributes = selectedCredentials,
+        ).getOrThrow() as CreatePresentationResult.DeviceResponse
+        PresentationResponseParameters.DeviceRetrievalParameters(result.deviceResponse)
     }
 
     private suspend fun createDCQLPresentation(
@@ -320,6 +362,40 @@ class HolderAgent @JvmOverloads constructor(
             },
         )
     )
+
+    override suspend fun matchDeviceRetrievalAgainstCredentialStore(
+        deviceRequest: DeviceRequest,
+        filterByIds: Collection<String>?
+    ): KmmResult<HolderIsoDeviceRetrievalQueryMatchingResult<StoreEntry>> = catching {
+        val credentials = getValidCredentialsByPriority(filterByIds)
+            ?: throw PresentationException("Credentials could not be retrieved from the store")
+        HolderIsoDeviceRetrievalQueryMatchingResult(
+            credentials = credentials,
+            queryMatchingResult = IsoDeviceRetrievalQueryMatchingResult(
+                documentMatches = deviceRequest.docRequests.map { docRequest ->
+                    docRequest.itemsRequest.value.match(credentials)
+                },
+            ),
+        )
+    }
+
+    private fun ItemsRequest.match(
+        credentials: List<StoreEntry>
+    ): List<IsoDeviceRetrievalCredentialMatch> = credentials.mapIndexedNotNull { index, credential ->
+        (credential as? StoreEntry.Iso)
+            ?.takeIf { it.schemeIdentifier == docType }
+            ?.let {
+                DeviceRetrievalInputEvaluator(
+                    itemsRequest = this,
+                    issuerSigned = it.issuerSigned
+                ).getOrNull()?.let { requestedClaims ->
+                    IsoDeviceRetrievalCredentialMatch(
+                        credentialIndex = index,
+                        requestedClaims = requestedClaims,
+                    )
+                }
+            }
+    }
 
     override fun evaluateInputDescriptorAgainstCredential(
         inputDescriptor: InputDescriptor,

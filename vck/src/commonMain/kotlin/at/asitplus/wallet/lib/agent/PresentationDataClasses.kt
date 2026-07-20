@@ -16,7 +16,6 @@ import at.asitplus.wallet.lib.jws.SdJwtSigned
 import io.matthewnelson.encoding.core.Encoder.Companion.encodeToString
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToByteArray
-import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
@@ -61,20 +60,15 @@ data class IsoDeviceSignatureInput(
 /**
  * Format-specific presentation artifacts created from a [at.asitplus.wallet.lib.data.CredentialPresentation].
  *
- * These are intermediate between holder selection and the surrounding protocol response. Protocol integrations use
- * [vpToken] and, for legacy Presentation Exchange, [presentationSubmission] when constructing their wire response.
+ * These are intermediate between holder selection and the surrounding protocol response. OpenID integrations project
+ * the OpenID-specific subtypes to `vp_token`; direct ISO Device Retrieval consumers use
+ * [PresentationResponseParameters.DeviceRetrievalParameters.deviceResponse] as their protocol response.
  */
 sealed interface PresentationResponseParameters {
-    // TODO Move to vck-openid because it's used only there?
-    val vpToken: JsonElement?
-
-    @Deprecated("Presentation Exchange is deprecated, use DCQL or DeviceRequest instead")
-    val presentationSubmission: PresentationSubmission?
-
     data class DCQLParameters(
         val verifiablePresentations: Map<DCQLCredentialQueryIdentifier, List<CreatePresentationResult>>,
     ) : PresentationResponseParameters {
-        override val vpToken
+        val vpToken
             get() = buildJsonObject {
                 verifiablePresentations.entries.forEach {
                     putJsonArray(it.key.string) {
@@ -85,15 +79,14 @@ sealed interface PresentationResponseParameters {
                 }
             }
 
-        override val presentationSubmission
-            get() = null
     }
 
     data class PresentationExchangeParameters(
         val presentationResults: List<CreatePresentationResult>,
-        override val presentationSubmission: PresentationSubmission,
+        @Deprecated("Presentation Exchange is deprecated, use DCQL or DeviceRequest instead")
+        val presentationSubmission: PresentationSubmission,
     ) : PresentationResponseParameters {
-        override val vpToken = presentationResults.map {
+        val vpToken = presentationResults.map {
             it.toJsonPrimitive()
         }.singleOrArray()
 
@@ -103,6 +96,16 @@ sealed interface PresentationResponseParameters {
             forEach { add(it) }
         }
     }
+
+    /**
+     * Presentation artifacts produced for ISO Device Retrieval.
+     *
+     * Device Retrieval transports consume [deviceResponse] directly. It is intentionally not exposed as an OpenID
+     * `vp_token`: OpenID4VP mdoc presentation continues to use the DCQL response model.
+     */
+    data class DeviceRetrievalParameters(
+        val deviceResponse: at.asitplus.iso.DeviceResponse,
+    ) : PresentationResponseParameters
 
     companion object {
         private fun CreatePresentationResult.toJsonPrimitive() = when (val presentationResult = this) {
@@ -142,6 +145,20 @@ sealed interface CreatePresentationResult {
 @Deprecated("Support for Presentation Exchange been removed from OpenID4VP")
 @Serializable
 data class PresentationExchangeCredentialDisclosure<Credential : Any>(
+    val credential: Credential,
+    val disclosedAttributes: Collection<NormalizedJsonPath>,
+)
+
+/**
+ * A holder credential selected for an ISO Device Retrieval response and the data elements to disclose.
+ *
+ * [docRequestIndex] identifies the request being fulfilled, so repeated requests for the same docType remain distinct.
+ * ISO namespaces and data-element names are represented as two-segment [NormalizedJsonPath] values because that is
+ * the selective-disclosure path type consumed by [VerifiablePresentationFactory].
+ */
+@Serializable
+data class DeviceRequestCredentialDisclosure<Credential : Any>(
+    val docRequestIndex: Int,
     val credential: Credential,
     val disclosedAttributes: Collection<NormalizedJsonPath>,
 )

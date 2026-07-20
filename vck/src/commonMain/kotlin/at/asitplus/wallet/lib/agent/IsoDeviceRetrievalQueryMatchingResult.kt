@@ -1,15 +1,29 @@
 package at.asitplus.wallet.lib.agent
 
-import at.asitplus.KmmResult
+/** A requested ISO namespace/data-element pair found in an mdoc credential. */
+data class IsoDeviceRetrievalClaimMatch(
+    val namespace: String,
+    val claimName: String,
+    val claimValue: Any,
+)
 
+/**
+ * One credential that completely satisfies one `DocRequest`.
+ *
+ * [credentialIndex] refers to the credential list on [HolderIsoDeviceRetrievalQueryMatchingResult]. Keeping this
+ * identity is necessary because several stored credentials may use the same docType.
+ */
+data class IsoDeviceRetrievalCredentialMatch(
+    val credentialIndex: Int,
+    val requestedClaims: List<IsoDeviceRetrievalClaimMatch>,
+)
+
+/**
+ * Matches for an ISO Device Request. Each outer list entry corresponds, by index, to one `DeviceRequest.docRequests`
+ * entry; its inner list contains the stored credentials that satisfy every requested data element.
+ *
+ * The positional model deliberately preserves repeated requests for the same docType.
+ */
 data class IsoDeviceRetrievalQueryMatchingResult(
-    val inputDescriptorMatchingResults: Map<String, List<KmmResult<InputDescriptorMatching>>>
-) {
-    val inputDescriptorMatches = inputDescriptorMatchingResults.mapValues {
-        it.value.mapIndexedNotNull { index, matchingResult ->
-            matchingResult.getOrNull()?.let {
-                index.toUInt() to it
-            }
-        }.toMap()
-    }
-}
+    val documentMatches: List<List<IsoDeviceRetrievalCredentialMatch>>,
+)

@@ -39,6 +39,9 @@ import at.asitplus.wallet.lib.agent.EphemeralKeyWithoutCert
 import at.asitplus.wallet.lib.agent.Holder
 import at.asitplus.wallet.lib.agent.HolderAgent
 import at.asitplus.wallet.lib.agent.KeyMaterial
+import at.asitplus.wallet.lib.agent.PresentationResponseParameters.DCQLParameters
+import at.asitplus.wallet.lib.agent.PresentationResponseParameters.DeviceRetrievalParameters
+import at.asitplus.wallet.lib.agent.PresentationResponseParameters.PresentationExchangeParameters
 import at.asitplus.wallet.lib.agent.RandomSource
 import at.asitplus.wallet.lib.agent.SubjectCredentialStore
 import at.asitplus.wallet.lib.cbor.CoseHeaderNone
@@ -353,7 +356,13 @@ class OpenId4VpHolder @JvmOverloads constructor(
             val parameters = AuthenticationResponseParameters(
                 state = request.parameters.state,
                 idToken = idToken?.toString(),
-                vpToken = resultContainer?.vpToken,
+                vpToken = when (resultContainer) {
+                    null -> null
+                    is DCQLParameters -> resultContainer.vpToken
+                    is PresentationExchangeParameters -> resultContainer.vpToken
+                    is DeviceRetrievalParameters ->
+                        throw InvalidRequest("ISO Device Retrieval responses are not OpenID4VP presentations")
+                },
             )
             AuthenticationResponse.Success(
                 params = parameters
@@ -367,7 +376,6 @@ class OpenId4VpHolder @JvmOverloads constructor(
                 ?.toJsonWebKey()
         }
 
-    // TODO Move to separate class, may be used by Valera also for ISO requests!
     /**
      * Matches the presentation request from [preparationState] against the holder's available credentials.
      *
@@ -398,20 +406,25 @@ class OpenId4VpHolder @JvmOverloads constructor(
                     inputDescriptors = presentationRequest.presentationDefinition.inputDescriptors,
                     fallbackFormatHolder = presentationRequest.fallbackFormatHolder,
                     filterByIds = preparationState.request.credentialIds()
-                ).getOrThrow().let { matchInputDescriptors ->
+                ).getOrThrow().let {
                     PresentationExchangeMatchingResult(
                         presentationRequest = presentationRequest,
-                        matchingResult = matchInputDescriptors
+                        matchingResult = it
                     )
                 }
 
             is CredentialPresentationRequest.IsoDeviceRetrieval ->
-                IsoDeviceRetrievalMatchingResult(
-                    presentationRequest = presentationRequest,
-                    matchingResult = TODO()
-                )
+                holder.matchDeviceRetrievalAgainstCredentialStore(
+                    deviceRequest = presentationRequest.deviceRequest,
+                    filterByIds = preparationState.request.credentialIds(),
+                ).getOrThrow().let {
+                    IsoDeviceRetrievalMatchingResult(
+                        presentationRequest = presentationRequest,
+                        matchingResult = it
+                    )
+                }
 
-            null -> TODO()
+            null -> throw InvalidRequest("No credential presentation request is available")
         }
     }
 

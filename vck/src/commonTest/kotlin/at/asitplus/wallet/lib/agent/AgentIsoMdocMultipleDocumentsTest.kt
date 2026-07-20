@@ -1,9 +1,15 @@
 package at.asitplus.wallet.lib.agent
 
 import at.asitplus.data.NonEmptyList.Companion.nonEmptyListOf
+import at.asitplus.iso.DeviceRequest
+import at.asitplus.iso.DocRequest
 import at.asitplus.iso.Document
+import at.asitplus.iso.ItemsRequest
+import at.asitplus.iso.ItemsRequestList
 import at.asitplus.iso.MobileSecurityObject
+import at.asitplus.iso.SingleItemsRequest
 import at.asitplus.openid.ClaimDescription
+import at.asitplus.openid.OpenId4VciClaimsPathPointer
 import at.asitplus.openid.dcql.DCQLClaimsPathPointer
 import at.asitplus.openid.dcql.DCQLClaimsQueryList
 import at.asitplus.openid.dcql.DCQLCredentialQueryIdentifier
@@ -12,8 +18,8 @@ import at.asitplus.openid.dcql.DCQLIsoMdocClaimsQuery
 import at.asitplus.openid.dcql.DCQLIsoMdocCredentialMetadataAndValidityConstraints
 import at.asitplus.openid.dcql.DCQLIsoMdocCredentialQuery
 import at.asitplus.openid.dcql.DCQLQuery
-import at.asitplus.openid.OpenId4VciClaimsPathPointer
 import at.asitplus.signum.indispensable.cosef.CoseSigned
+import at.asitplus.signum.indispensable.cosef.io.ByteStringWrapper
 import at.asitplus.testballoon.matrix.fixture
 import at.asitplus.testballoon.matrix.matrixSuite
 import at.asitplus.wallet.lib.cbor.SignCose
@@ -94,11 +100,11 @@ val AgentIsoMdocMultipleDocumentsTest by matrixSuite {
         }
     } - {
 
-        test("dcql: multiple credentials should be multiple device responses for remote presentation") {
-            val request = it.verifier.createPresentationRequest(
-                calcIsoDeviceSignaturePlain = simpleSigner(it.signer),
+        test("dcql: multiple credentials should be multiple device responses for remote presentation") { scope ->
+            val request = scope.verifier.createPresentationRequest(
+                calcIsoDeviceSignaturePlain = simpleSigner(scope.signer),
             )
-            val presentationParameters = it.holder.createDefaultPresentation(
+            val presentationParameters = scope.holder.createDefaultPresentation(
                 request = request,
                 credentialPresentationRequest = CredentialPresentationRequest.DCQLRequest(
                     DCQLQuery(
@@ -110,31 +116,68 @@ val AgentIsoMdocMultipleDocumentsTest by matrixSuite {
                 )
             ).getOrThrow().shouldBeInstanceOf<PresentationResponseParameters.DCQLParameters>()
 
-            val presentationResults = presentationParameters.verifiablePresentations.values.flatten()
-            presentationResults.shouldHaveSize(2).forEach { result ->
-                result.shouldBeInstanceOf<CreatePresentationResult.DeviceResponse>()
-                it.verifier.verifyPresentationIsoMdoc(result.deviceResponse, documentVerifier()).getOrThrow()
-                    .shouldBeInstanceOf<Verifier.VerifyPresentationResult.SuccessIso>().apply {
-                        documents.shouldBeSingleton().forEach {
-                            it.freshnessSummary.tokenStatusValidationResult
-                                .shouldNotBeInstanceOf<TokenStatusValidationResult.Invalid>()
-                        }
+            presentationParameters.verifiablePresentations.values.flatten()
+                .shouldHaveSize(2).apply {
+                    forEach { _ ->
+                        shouldBeInstanceOf<CreatePresentationResult.DeviceResponse>()
+                        scope.verifier.verifyPresentationIsoMdoc(deviceResponse, documentVerifier()).getOrThrow()
+                            .shouldBeInstanceOf<Verifier.VerifyPresentationResult.SuccessIso>().apply {
+                                documents.shouldBeSingleton().forEach {
+                                    it.freshnessSummary.tokenStatusValidationResult
+                                        .shouldNotBeInstanceOf<TokenStatusValidationResult.Invalid>()
+                                }
+                            }
                     }
-            }
-            val validItems = presentationResults
+                }
                 .filterIsInstance<CreatePresentationResult.DeviceResponse>()
                 .map { resp ->
-                    it.verifier.verifyPresentationIsoMdoc(resp.deviceResponse, documentVerifier()).getOrThrow()
+                    scope.verifier.verifyPresentationIsoMdoc(resp.deviceResponse, documentVerifier()).getOrThrow()
                 }
-                .flatMap { it.shouldBeInstanceOf<Verifier.VerifyPresentationResult.SuccessIso>().documents }
-                .flatMap { it.validItems }
-            validItems.firstOrNull { item -> item.elementIdentifier == CLAIM_GIVEN_NAME }
-                .shouldNotBeNull().elementValue shouldBe "Susanne"
-            validItems.firstOrNull { item -> item.elementIdentifier == CLAIM_FAMILY_NAME }
-                .shouldNotBeNull().elementValue shouldBe "Meier"
+                .flatMap { scope.shouldBeInstanceOf<Verifier.VerifyPresentationResult.SuccessIso>().documents }
+                .flatMap { it.validItems }.apply {
+                    firstOrNull { item -> item.elementIdentifier == CLAIM_GIVEN_NAME }
+                        .shouldNotBeNull().elementValue shouldBe "Susanne"
+                    firstOrNull { item -> item.elementIdentifier == CLAIM_FAMILY_NAME }
+                        .shouldNotBeNull().elementValue shouldBe "Meier"
+                }
+        }
+
+        test("device retrieval: multiple document requests produce one device response") {
+            val result = it.holder.createDefaultPresentation(
+                request = it.verifier.createPresentationRequest(
+                    calcIsoDeviceSignaturePlain = simpleSigner(it.signer),
+                ),
+                credentialPresentationRequest = CredentialPresentationRequest.IsoDeviceRetrieval(
+                    DeviceRequest(
+                        version = "1.0",
+                        docRequests = arrayOf(
+                            docRequest(AtomicAttribute2023, CLAIM_GIVEN_NAME),
+                            docRequest(AtomicAttribute2025, CLAIM_FAMILY_NAME),
+                        ),
+                    )
+                ),
+            ).getOrThrow().shouldBeInstanceOf<PresentationResponseParameters.DeviceRetrievalParameters>()
+
+            it.verifier.verifyPresentationIsoMdoc(result.deviceResponse, documentVerifier()).getOrThrow()
+                .shouldBeInstanceOf<Verifier.VerifyPresentationResult.SuccessIso>()
+                .documents.shouldHaveSize(2).flatMap { it.validItems }.apply {
+                    first { it.elementIdentifier == CLAIM_GIVEN_NAME }.elementValue shouldBe "Susanne"
+                    first { it.elementIdentifier == CLAIM_FAMILY_NAME }.elementValue shouldBe "Meier"
+                }
         }
     }
 }
+
+private fun docRequest(scheme: IsoMdocCredentialScheme, claim: String) = DocRequest(
+    itemsRequest = ByteStringWrapper(
+        ItemsRequest(
+            docType = scheme.isoDocType,
+            namespaces = mapOf(
+                scheme.isoNamespace to ItemsRequestList(listOf(SingleItemsRequest(claim, false)))
+            ),
+        )
+    )
+)
 
 private fun isoMdocCredentialQuery(
     scheme: CredentialScheme,

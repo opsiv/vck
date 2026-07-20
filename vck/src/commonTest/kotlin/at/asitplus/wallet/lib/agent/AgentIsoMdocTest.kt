@@ -1,8 +1,13 @@
 package at.asitplus.wallet.lib.agent
 
 import at.asitplus.data.NonEmptyList.Companion.toNonEmptyList
+import at.asitplus.iso.DeviceRequest
+import at.asitplus.iso.DocRequest
 import at.asitplus.iso.Document
+import at.asitplus.iso.ItemsRequest
+import at.asitplus.iso.ItemsRequestList
 import at.asitplus.iso.MobileSecurityObject
+import at.asitplus.iso.SingleItemsRequest
 import at.asitplus.openid.CredentialFormatEnum
 import at.asitplus.openid.dcql.DCQLClaimsPathPointer
 import at.asitplus.openid.dcql.DCQLClaimsQueryList
@@ -14,6 +19,7 @@ import at.asitplus.openid.dcql.DCQLIsoMdocCredentialQuery
 import at.asitplus.openid.dcql.DCQLQuery
 import at.asitplus.signum.indispensable.CryptoPublicKey
 import at.asitplus.signum.indispensable.cosef.CoseSigned
+import at.asitplus.signum.indispensable.cosef.io.ByteStringWrapper
 import at.asitplus.testballoon.matrix.fixture
 import at.asitplus.testballoon.matrix.matrixSuite
 import at.asitplus.wallet.lib.agent.validation.TokenStatusResolverImpl
@@ -33,6 +39,7 @@ import at.asitplus.wallet.lib.data.rfc3986.toUri
 import at.asitplus.wallet.lib.randomCwtOrJwtResolver
 import com.benasher44.uuid.uuid4
 import io.kotest.matchers.collections.shouldBeSingleton
+import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
@@ -66,13 +73,80 @@ val AgentIsoMdocTest by matrixSuite {
                 }
             }
 
+            if (mode == IsoRevocationMode.STATUS_LIST) {
+                "device retrieval: creates one device response with the requested claim" {
+                    val result = it.holder.createDefaultPresentation(
+                        request = it.verifier.createPresentationRequest(
+                            calcIsoDeviceSignaturePlain = simpleSigner(it.signer),
+                        ),
+                        credentialPresentationRequest = CredentialPresentationRequest.IsoDeviceRetrieval(
+                            isoDeviceRequest(CLAIM_GIVEN_NAME)
+                        )
+                    ).getOrThrow().shouldBeInstanceOf<PresentationResponseParameters.DeviceRetrievalParameters>()
+
+                    result.deviceResponse.documents.shouldNotBeNull().shouldBeSingleton().single()
+                        .issuerSigned.namespaces.shouldNotBeNull()
+                        .getValue(ConstantIndex.AtomicAttribute2023.isoNamespace).entries.shouldBeSingleton()
+                        .single().value.elementIdentifier shouldBe CLAIM_GIVEN_NAME
+                    it.verifier.verifyPresentationIsoMdoc(result.deviceResponse, documentVerifier()).getOrThrow()
+                        .shouldBeInstanceOf<Verifier.VerifyPresentationResult.SuccessIso>()
+                }
+
+                "device retrieval: rejects a request for a missing data element" {
+                    it.holder.createDefaultPresentation(
+                        request = it.verifier.createPresentationRequest(
+                            calcIsoDeviceSignaturePlain = simpleSigner(it.signer),
+                        ),
+                        credentialPresentationRequest = CredentialPresentationRequest.IsoDeviceRetrieval(
+                            isoDeviceRequest("not_in_the_credential")
+                        ),
+                    ).isFailure shouldBe true
+                }
+
+                "device retrieval: preserves repeated document requests" {
+                    val request = CredentialPresentationRequest.IsoDeviceRetrieval(
+                        DeviceRequest(
+                            version = "1.0",
+                            docRequests = arrayOf(
+                                isoDocRequest(CLAIM_GIVEN_NAME),
+                                isoDocRequest(CLAIM_DATE_OF_BIRTH),
+                            ),
+                        )
+                    )
+
+                    it.holder.createDefaultPresentation(
+                        request = it.verifier.createPresentationRequest(
+                            calcIsoDeviceSignaturePlain = simpleSigner(it.signer),
+                        ),
+                        credentialPresentationRequest = request,
+                    ).getOrThrow().shouldBeInstanceOf<PresentationResponseParameters.DeviceRetrievalParameters>()
+                        .deviceResponse.documents.shouldNotBeNull().shouldHaveSize(2)
+                }
+
+                "device retrieval: matching keeps all credentials with the same docType" {
+                    it.holder.storeCredential(
+                        it.issuer.issueCredential(
+                            DummyCredentialDataProvider.getCredential(
+                                subjectPublicKey = it.holderKeyMaterial.publicKey,
+                                credentialScheme = ConstantIndex.AtomicAttribute2023,
+                                representation = ISO_MDOC,
+                            ).getOrThrow()
+                        ).getOrThrow().toStoreCredentialInput()
+                    ).getOrThrow()
+
+                    it.holder.matchDeviceRetrievalAgainstCredentialStore(isoDeviceRequest(CLAIM_GIVEN_NAME))
+                        .getOrThrow().documentMatches.shouldBeSingleton().single().shouldHaveSize(2)
+                }
+            }
+
             if (mode == IsoRevocationMode.IDENTIFIER_LIST) {
                 "identifier list: status info is encoded on issued ISO_MDOC credential" {
                     val issuedCredential = it.issuer.issueIdentifierListIsoMdoc(it.holderKeyMaterial.publicKey)
 
-                    val statusInfo = issuedCredential.issuedIdentifierListInfo()
-                    statusInfo.identifier.isNotEmpty() shouldBe true
-                    statusInfo.uri.string shouldContain "/identifier/"
+                    issuedCredential.issuedIdentifierListInfo().apply {
+                        identifier.isNotEmpty() shouldBe true
+                        uri.string shouldContain "/identifier/"
+                    }
                 }
 
                 "identifier list: identifiers are unique across issued ISO_MDOC credentials" {
@@ -88,13 +162,13 @@ val AgentIsoMdocTest by matrixSuite {
                     val statusInfo = it.issuer.issueIdentifierListIsoMdoc(it.holderKeyMaterial.publicKey)
                         .issuedIdentifierListInfo()
 
-                    val payload = StatusListCwt(
+                    StatusListCwt(
                         value = it.statusListIssuer.issueStatusListCwt(kind = RevocationList.Kind.IDENTIFIER_LIST),
                         resolvedAt = null,
-                    ).parsedPayload.getOrThrow()
-
-                    payload.revocationList.shouldBeInstanceOf<IdentifierList>()
-                    payload.subject shouldBe statusInfo.uri
+                    ).parsedPayload.getOrThrow().apply {
+                        revocationList.shouldBeInstanceOf<IdentifierList>()
+                        subject shouldBe statusInfo.uri
+                    }
                 }
 
                 "identifier list: revoking one credential keeps non-revoked credential valid" {
@@ -160,6 +234,24 @@ val AgentIsoMdocTest by matrixSuite {
         }
     }
 }
+
+private fun isoDeviceRequest(vararg claimNames: String) = DeviceRequest(
+    version = "1.0",
+    docRequests = arrayOf(isoDocRequest(*claimNames)),
+)
+
+private fun isoDocRequest(vararg claimNames: String) = DocRequest(
+    ByteStringWrapper(
+        ItemsRequest(
+            docType = ConstantIndex.AtomicAttribute2023.isoDocType,
+            namespaces = mapOf(
+                ConstantIndex.AtomicAttribute2023.isoNamespace to ItemsRequestList(
+                    claimNames.map { SingleItemsRequest(it, false) }
+                )
+            ),
+        )
+    )
+)
 
 private enum class IsoRevocationMode(
     val revocationKind: RevocationList.Kind,

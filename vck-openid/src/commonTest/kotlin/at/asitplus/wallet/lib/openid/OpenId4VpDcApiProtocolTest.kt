@@ -32,6 +32,7 @@ import at.asitplus.wallet.lib.data.ConstantIndex.AtomicAttribute2023
 import at.asitplus.wallet.lib.data.ConstantIndex.AtomicAttribute2023.CLAIM_GIVEN_NAME
 import at.asitplus.wallet.lib.data.ConstantIndex.CredentialRepresentation.ISO_MDOC
 import at.asitplus.wallet.lib.data.ConstantIndex.CredentialRepresentation.SD_JWT
+import at.asitplus.wallet.lib.data.CredentialPresentationRequest
 import at.asitplus.wallet.lib.data.rfc3986.toUri
 import com.benasher44.uuid.uuid4
 import io.kotest.matchers.collections.shouldBeSingleton
@@ -57,20 +58,25 @@ val OpenId4VpDcApiProtocolTest by matrixSuite {
     fixture {
         runBlocking {
             val holderKeyMaterial: KeyMaterial = EphemeralKeyWithoutCert()
+            val issuerAgent = IssuerAgent(
+                keyMaterial = EphemeralKeyWithSelfSignedCert(),
+                identifier = "https://issuer.example.com/".toUri(),
+                randomSource = RandomSource.Default,
+            )
             val holderAgent: Holder = HolderAgent(holderKeyMaterial).also { agent ->
-                agent.storeCredential(
-                    IssuerAgent(
-                        identifier = "https://issuer.example.com/".toUri(),
-                        randomSource = RandomSource.Default,
-                    ).issueCredential(
-                        DummyCredentialDataProvider.getCredential(
-                            holderKeyMaterial.publicKey,
-                            AtomicAttribute2023,
-                            SD_JWT,
-                        ).getOrThrow()
-                    ).getOrThrow().toStoreCredentialInput()
-                )
+                listOf(SD_JWT, ISO_MDOC).forEach { representation ->
+                    agent.storeCredential(
+                        issuerAgent.issueCredential(
+                            DummyCredentialDataProvider.getCredential(
+                                holderKeyMaterial.publicKey,
+                                AtomicAttribute2023,
+                                representation,
+                            ).getOrThrow()
+                        ).getOrThrow().toStoreCredentialInput()
+                    ).getOrThrow()
+                }
             }
+            val storedCredentialIds = holderAgent.getCredentials()!!.map { it.getDcApiId() }
             object {
                 val allowedOriginSchemes = OpenId4VpHolder.DEFAULT_ALLOWED_DC_API_ORIGIN_SCHEMES.toMutableSet()
                 val holderOid4vp: OpenId4VpHolder = OpenId4VpHolder(
@@ -108,6 +114,27 @@ val OpenId4VpDcApiProtocolTest by matrixSuite {
                     .singleRequest<DigitalCredentialGetRequest.OpenId4VpSigned>()
                     .data.request
                     .typed<AuthenticationRequestParameters, JwsCompact>()
+
+                suspend fun preparationStateFor(
+                    presentationRequest: CredentialPresentationRequest?,
+                ): AuthorizationResponsePreparationState {
+                    val authnRequest = createUnsignedAuthnRequest(
+                        OpenId4VpRequestOptions(
+                            presentationRequest = dcqlRequest,
+                            responseMode = OpenIdConstants.ResponseMode.DcApi,
+                            expectedOrigins = listOf(callingOrigin),
+                        )
+                    )
+                    return holderOid4vp.startAuthorizationResponsePreparation(
+                        RequestParametersFrom.OpenId4VpDcApiUnsigned(
+                            parameters = authnRequest,
+                            jsonString = joseCompliantSerializer.encodeToString(authnRequest),
+                            credentialIds = storedCredentialIds,
+                            callingPackageName = callingPackageName,
+                            callingOrigin = callingOrigin,
+                        )
+                    ).getOrThrow().copy(credentialPresentationRequest = presentationRequest)
+                }
             }
         }
     } - {
@@ -212,6 +239,21 @@ val OpenId4VpDcApiProtocolTest by matrixSuite {
                         encryptionInfo.encryptionParameters.nonce.shouldNotBeNull()
                     }
                 }
+        }
+
+        test("getMatchingCredentials matches ISO Device Retrieval requests") { f ->
+            val request = CredentialPresentationRequestBuilder(
+                RequestOptionsCredential(AtomicAttribute2023, ISO_MDOC),
+            ).toIsoDeviceRetrievalRequest()
+
+            f.holderOid4vp.getMatchingCredentials(f.preparationStateFor(request)).getOrThrow()
+                .shouldBeInstanceOf<IsoDeviceRetrievalMatchingResult<*>>()
+                .matchingResult.documentMatches.shouldBeSingleton().single().shouldBeSingleton()
+        }
+
+        test("getMatchingCredentials rejects requests without a credential presentation") { f ->
+            f.holderOid4vp.getMatchingCredentials(f.preparationStateFor(null))
+                .exceptionOrNull().shouldNotBeNull().message.shouldNotBeNull() shouldContain "presentation request"
         }
 
         test("createAuthnRequest combines several exchange protocols in one browser call") { f ->

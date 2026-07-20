@@ -213,7 +213,7 @@ val OpenId4VpDcApiProtocolTest by matrixSuite {
         }
 
 
-        test("DC API Annex C: createAuthnRequest renders the DCQL query as ISO device request") { f ->
+        test("DC API Annex C: createAuthnRequest renders the Device Retrieval request as ISO device request") { f ->
             val reqOptions = OpenId4VpRequestOptions(
                 presentationRequest = CredentialPresentationRequestBuilder(
                     RequestOptionsCredential(

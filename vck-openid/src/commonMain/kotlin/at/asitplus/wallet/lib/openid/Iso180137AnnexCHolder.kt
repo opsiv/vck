@@ -3,8 +3,6 @@ package at.asitplus.wallet.lib.openid
 import at.asitplus.KmmResult
 import at.asitplus.catching
 import at.asitplus.dcapi.EncryptedResponse
-import at.asitplus.dcapi.request.toDifInputDescriptors
-import at.asitplus.dif.PresentationDefinition
 import at.asitplus.openid.RequestParametersFrom
 import at.asitplus.wallet.lib.agent.EphemeralKeyWithoutCert
 import at.asitplus.wallet.lib.agent.Holder
@@ -34,24 +32,21 @@ class Iso180137AnnexCHolder @JvmOverloads constructor(
     /** Adapts the Annex C device request to the presentation model used by VC-K's credential matcher. */
     fun createPresentationRequest(
         request: RequestParametersFrom.IsoMdocDcApi,
-    ): KmmResult<CredentialPresentationRequest.PresentationExchangeRequest> = catching {
-        CredentialPresentationRequest.PresentationExchangeRequest(
-            presentationDefinition = PresentationDefinition(
-                inputDescriptors = request.parameters.isoMdocRequest.toDifInputDescriptors()
-            )
+    ): KmmResult<CredentialPresentationRequest.IsoDeviceRetrieval> = catching {
+        CredentialPresentationRequest.IsoDeviceRetrieval(
+            deviceRequest = request.parameters.isoMdocRequest.deviceRequest,
         )
     }
 
     /** Matches mdoc credentials, restricted to platform-selected credential IDs when supplied in [request]. */
     suspend fun getMatchingCredentials(
         request: RequestParametersFrom.IsoMdocDcApi,
-    ): KmmResult<PresentationExchangeMatchingResult<SubjectCredentialStore.StoreEntry>> = catching {
+    ): KmmResult<IsoDeviceRetrievalMatchingResult<SubjectCredentialStore.StoreEntry>> = catching {
         val presentationRequest = createPresentationRequest(request).getOrThrow()
-        PresentationExchangeMatchingResult(
+        IsoDeviceRetrievalMatchingResult(
             presentationRequest = presentationRequest,
-            matchingResult = holder.matchInputDescriptorsAgainstCredentialStoreV2(
-                inputDescriptors = presentationRequest.presentationDefinition.inputDescriptors,
-                fallbackFormatHolder = presentationRequest.fallbackFormatHolder,
+            matchingResult = holder.matchDeviceRetrievalAgainstCredentialStore(
+                deviceRequest = presentationRequest.deviceRequest,
                 filterByIds = request.credentialIds,
             ).getOrThrow(),
         )
@@ -60,7 +55,7 @@ class Iso180137AnnexCHolder @JvmOverloads constructor(
     /** Creates and encrypts the selected mdoc device response according to ISO/IEC 18013-7 Annex C. */
     suspend fun finalizeResponse(
         request: RequestParametersFrom.IsoMdocDcApi,
-        credentialPresentation: CredentialPresentation.PresentationExchangePresentation,
+        credentialPresentation: CredentialPresentation.IsoDeviceRetrievalPresentation,
     ): KmmResult<EncryptedResponse> = catching {
         IsoMdocDcapiResponseBuilder.buildEncryptedResponse(
             credentialPresentation = credentialPresentation,

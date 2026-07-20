@@ -9,9 +9,7 @@ import at.asitplus.openid.OpenIdConstants.VP_TOKEN
 import at.asitplus.openid.TransactionData
 import at.asitplus.wallet.lib.RequestOptions
 import at.asitplus.wallet.lib.data.CredentialPresentationRequest
-import at.asitplus.wallet.lib.data.CredentialPresentationRequest.DCQLRequest
-import at.asitplus.wallet.lib.data.CredentialPresentationRequest.IsoDeviceRetrieval
-import at.asitplus.wallet.lib.data.CredentialPresentationRequest.PresentationExchangeRequest
+import at.asitplus.wallet.lib.data.CredentialPresentationRequest.*
 import com.benasher44.uuid.uuid4
 
 enum class VerifierMetadataMode {
@@ -102,7 +100,7 @@ data class OpenId4VpRequestOptions(
             }
         }
         if (isAnyDcApi) {
-            require(isDcql) { "DC API only supports DCQL" }
+            require(isDcql || isDeviceRetrieval) { "DC API only supports DCQL or DeviceRetrieval" }
             require(!isSiop) { "DC API does not support SIOP (id_token)" }
             if (populateClientId) {
                 // should be a signed DC API request if client_id has to be assigned
@@ -120,6 +118,9 @@ data class OpenId4VpRequestOptions(
 
     val isDcql: Boolean
         get() = presentationRequest is DCQLRequest
+
+    val isDeviceRetrieval: Boolean
+        get() = presentationRequest is IsoDeviceRetrieval
 
     val isAnyDirectPost: Boolean
         get() = (responseMode == ResponseMode.DirectPost) ||

@@ -44,7 +44,9 @@ import at.asitplus.wallet.lib.agent.Verifier
 import at.asitplus.wallet.lib.agent.VerifierAgent
 import at.asitplus.wallet.lib.cbor.VerifyCoseSignatureWithKey
 import at.asitplus.wallet.lib.cbor.VerifyCoseSignatureWithKeyFun
+import at.asitplus.wallet.lib.data.CredentialPresentationRequest
 import at.asitplus.wallet.lib.data.CredentialPresentationRequest.DCQLRequest
+import at.asitplus.wallet.lib.data.CredentialPresentationRequest.IsoDeviceRetrieval
 import at.asitplus.wallet.lib.jws.DecryptJwe
 import at.asitplus.wallet.lib.jws.DecryptJweFun
 import at.asitplus.wallet.lib.jws.SignJwt
@@ -183,25 +185,35 @@ class DcApiVerifier @JvmOverloads constructor(
             )
         )
 
-        DcApiCreationOptions.Iso180137AnnexC -> IsoMdoc(
-            createIsoMdocRequest(requestOptions)
-        )
-    }
+        DcApiCreationOptions.Iso180137AnnexC -> when (requestOptions.presentationRequest) {
+            is DCQLRequest -> IsoMdoc(
+                IsoMdocRequest(
+                    deviceRequest = requestOptions.presentationRequest.dcqlQuery.toIso180137AnnexCDeviceRequest(),
+                    encryptionInfo = EncryptionInfo(
+                        type = TYPE_DCAPI,
+                        encryptionParameters = EncryptionParameters(
+                            nonceService.provideNonce().toByteArray(),
+                            decryptionKeyMaterial.publicKey.toCoseKey().getOrThrow()
+                        )
+                    )
+                ).also { stateToIsoMdocRequestStore.put(requestOptions.state, it) }
+            )
 
-    private suspend fun createIsoMdocRequest(
-        requestOptions: OpenId4VpRequestOptions,
-    ): IsoMdocRequest {
-        // TODO Should now be DeviceRequest? Or support both?
-        val deviceRequest = ((requestOptions.presentationRequest as? DCQLRequest)?.dcqlQuery
-            ?: throw IllegalArgumentException("ISO 18013-7 Annex C requires a DCQL presentation request"))
-            .toIso180137AnnexCDeviceRequest()
+            is IsoDeviceRetrieval -> IsoMdoc(
+                IsoMdocRequest(
+                    deviceRequest = requestOptions.presentationRequest.deviceRequest,
+                    encryptionInfo = EncryptionInfo(
+                        type = TYPE_DCAPI,
+                        encryptionParameters = EncryptionParameters(
+                            nonceService.provideNonce().toByteArray(),
+                            decryptionKeyMaterial.publicKey.toCoseKey().getOrThrow()
+                        )
+                    )
+                ).also { stateToIsoMdocRequestStore.put(requestOptions.state, it) }
+            )
 
-        val encryptionParameters = EncryptionParameters(
-            nonceService.provideNonce().toByteArray(),
-            decryptionKeyMaterial.publicKey.toCoseKey().getOrThrow()
-        )
-        return IsoMdocRequest(deviceRequest, EncryptionInfo(TYPE_DCAPI, encryptionParameters))
-            .also { stateToIsoMdocRequestStore.put(requestOptions.state, it) }
+            else -> throw IllegalArgumentException("ISO 18013-7 Annex C requires a Device Request or DCQL presentation")
+        }
     }
 
     /**

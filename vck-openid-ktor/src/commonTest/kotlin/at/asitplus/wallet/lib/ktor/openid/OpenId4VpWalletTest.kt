@@ -71,6 +71,7 @@ import at.asitplus.wallet.mdl.MDL_DOCTYPE
 import com.benasher44.uuid.uuid4
 import io.github.aakira.napier.Napier
 import io.kotest.assertions.throwables.shouldThrowAny
+import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldBeSingleton
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.string.shouldContain
@@ -475,7 +476,7 @@ val OpenId4VpWalletTest by matrixSuite {
                 .shouldBeInstanceOf<DCQLMatchingResult<*>>().apply {
                     val submission = matchingResult.toDefaultSubmission(presentationRequest.dcqlQuery).getOrThrow()
                     shouldThrowAny {
-                        presentationRequest.dcqlQuery.checkCredentialSetQueryRequirements(submission.keys)
+                        presentationRequest.dcqlQuery.checkCredentialSetQueryRequirements(submission.keys).getOrThrow()
                     }
                 }
         }

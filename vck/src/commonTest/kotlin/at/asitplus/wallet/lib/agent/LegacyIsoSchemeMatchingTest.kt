@@ -1,14 +1,17 @@
 package at.asitplus.wallet.lib.agent
 
-import at.asitplus.dif.Constraint
-import at.asitplus.dif.ConstraintField
-import at.asitplus.dif.DifInputDescriptor
-import at.asitplus.jsonpath.core.NormalizedJsonPath
-import at.asitplus.jsonpath.core.NormalizedJsonPathSegment.NameSegment
+import at.asitplus.catching
+import at.asitplus.openid.CredentialFormatEnum
+import at.asitplus.openid.dcql.DCQLCredentialQuery
+import at.asitplus.openid.dcql.DCQLCredentialQueryIdentifier
+import at.asitplus.openid.dcql.DCQLCredentialQueryList
+import at.asitplus.openid.dcql.DCQLIsoMdocCredentialMetadataAndValidityConstraints
+import at.asitplus.openid.dcql.DCQLQuery
 import at.asitplus.testballoon.matrix.matrixSuite
 import at.asitplus.wallet.lib.data.ConstantIndex.AtomicAttribute2023
-import at.asitplus.wallet.lib.data.ConstantIndex.AtomicAttribute2023.CLAIM_GIVEN_NAME
 import at.asitplus.wallet.lib.data.ConstantIndex.CredentialRepresentation.ISO_MDOC
+import at.asitplus.wallet.lib.data.CredentialPresentationRequest
+import at.asitplus.wallet.lib.data.CredentialScheme
 import at.asitplus.wallet.lib.data.rfc3986.toUri
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
@@ -39,41 +42,43 @@ val LegacyIsoSchemeMatchingTest by matrixSuite {
         )
     }
 
-    fun isoInputDescriptor(id: String) = DifInputDescriptor(
-        id = id,
-        constraints = Constraint(
-            fields = setOf(
-                ConstraintField(
-                    path = listOf(
-                        NormalizedJsonPath(
-                            NameSegment(AtomicAttribute2023.isoNamespace),
-                            NameSegment(CLAIM_GIVEN_NAME),
-                        ).toString()
-                    )
+    fun dcqlRequest(docType: String) = CredentialPresentationRequest.DCQLRequest(
+        DCQLQuery(
+            credentials = DCQLCredentialQueryList(
+                DCQLCredentialQuery(
+                    id = DCQLCredentialQueryIdentifier("credential"),
+                    format = CredentialFormatEnum.MSO_MDOC,
+                    meta = DCQLIsoMdocCredentialMetadataAndValidityConstraints(doctypeValue = docType),
                 )
             )
         )
     )
 
-    "legacy ISO entry without scheme identifier matches its docType input descriptor" {
-        val holder = HolderAgent(EphemeralKeyWithSelfSignedCert(), InMemorySubjectCredentialStore())
-        val entry = legacyIsoEntryWithoutSchemeIdentifier()
+    fun readOnlyStore(entry: SubjectCredentialStore.StoreEntry) =
+        object : SubjectCredentialStore by InMemorySubjectCredentialStore() {
+            override suspend fun getCredentials(credentialSchemes: Collection<CredentialScheme>?) = catching {
+                listOf(entry)
+            }
+        }
 
-        holder.evaluateInputDescriptorAgainstCredential(
-            inputDescriptor = isoInputDescriptor(AtomicAttribute2023.isoDocType),
-            credential = entry,
-            fallbackFormatHolder = null,
-        ) { true }.isSuccess shouldBe true
+    "legacy ISO entry without scheme identifier matches its docType input descriptor" {
+        val entry = legacyIsoEntryWithoutSchemeIdentifier()
+        val holder = HolderAgent(EphemeralKeyWithSelfSignedCert(), readOnlyStore(entry))
+
+        holder
+            .matchPresentationRequestAgainstCredentialStore(dcqlRequest(AtomicAttribute2023.isoDocType))
+            .getOrThrow()
+            .shouldBeInstanceOf<DCQLMatchingResult<*>>()
+            .matchingResult.credentialQueryMatches.values.single().size shouldBe 1
     }
 
     "legacy ISO entry without scheme identifier is rejected for a mismatched docType" {
-        val holder = HolderAgent(EphemeralKeyWithSelfSignedCert(), InMemorySubjectCredentialStore())
         val entry = legacyIsoEntryWithoutSchemeIdentifier()
+        val holder = HolderAgent(EphemeralKeyWithSelfSignedCert(), readOnlyStore(entry))
 
-        holder.evaluateInputDescriptorAgainstCredential(
-            inputDescriptor = isoInputDescriptor("org.example.other.doctype"),
-            credential = entry,
-            fallbackFormatHolder = null,
-        ) { true }.isSuccess shouldBe false
+        holder.matchPresentationRequestAgainstCredentialStore(dcqlRequest("org.example.other.doctype"))
+            .getOrThrow()
+            .shouldBeInstanceOf<DCQLMatchingResult<*>>()
+            .matchingResult.credentialQueryMatches.values.single().size shouldBe 0
     }
 }

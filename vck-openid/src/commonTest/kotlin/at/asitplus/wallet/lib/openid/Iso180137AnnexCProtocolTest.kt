@@ -72,9 +72,9 @@ val Iso180137AnnexCProtocolTest by matrixSuite {
             DCQLClaimsPathPointer(CLAIM_DATE_OF_BIRTH),
         ),
     )
-    val dcqlRequest = CredentialPresentationRequestBuilder(requestedCredential).toDCQLRequest()!!
+    val deviceRequest = CredentialPresentationRequestBuilder(requestedCredential).toIsoDeviceRetrievalRequest()
 
-    fixture({
+    fixture {
         kotlinx.coroutines.runBlocking {
             val holderKeyMaterial: KeyMaterial = EphemeralKeyWithoutCert()
             val holderAgent = HolderAgent(holderKeyMaterial).also { agent ->
@@ -108,7 +108,7 @@ val Iso180137AnnexCProtocolTest by matrixSuite {
                 suspend fun createIsoMdocRequest(transactionId: String): IsoMdocRequest = verifier
                     .createAuthnRequest(
                         OpenId4VpRequestOptions(
-                            presentationRequest = dcqlRequest,
+                            presentationRequest = deviceRequest,
                             responseMode = OpenIdConstants.ResponseMode.DcApi,
                             expectedOrigins = listOf(callingOrigin),
                             state = transactionId,
@@ -125,12 +125,12 @@ val Iso180137AnnexCProtocolTest by matrixSuite {
                 ) = createWalletResponse(holderAgent, holderKeyMaterial, isoMdocRequest, origin, requestedCredential)
             }
         }
-    }) - {
+    } - {
 
         test("createAuthnRequest renders device request and encryption info, and remembers the request") { f ->
             val transactionId = uuid4().toString()
             val isoMdocRequest = f.createIsoMdocRequest(transactionId).apply {
-                deviceRequest.docRequests.single().itemsRequest.value.apply {
+                deviceRequest.deviceRequest.docRequests.shouldBeSingleton().first().itemsRequest.value.apply {
                     docType shouldBe AtomicAttribute2023.isoDocType
                     namespaces[AtomicAttribute2023.isoNamespace]!!.entries shouldBe listOf(
                         SingleItemsRequest(CLAIM_GIVEN_NAME, false),

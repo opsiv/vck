@@ -19,6 +19,7 @@ import at.asitplus.openid.dcql.DCQLCredentialQueryIdentifier
 import at.asitplus.openid.dcql.DCQLCredentialQueryList
 import at.asitplus.openid.dcql.DCQLIsoMdocCredentialQuery
 import at.asitplus.openid.dcql.DCQLJwtVcCredentialQuery
+import at.asitplus.openid.dcql.DCQLQueryMatchingResult
 import at.asitplus.openid.dcql.DCQLSdJwtCredentialQuery
 import at.asitplus.signum.indispensable.josef.io.joseCompliantSerializer
 import at.asitplus.testballoon.matrix.fixture
@@ -26,10 +27,12 @@ import at.asitplus.testballoon.matrix.matrixSuite
 import at.asitplus.wallet.eupidsdjwt.EU_PID_SD_JWT_VCT
 import at.asitplus.wallet.eupidsdjwt.EuPidSdJwtDataElements
 import at.asitplus.wallet.lib.RequestOptionsCredential
+import at.asitplus.wallet.lib.agent.DCQLMatchingResult
 import at.asitplus.wallet.lib.agent.EphemeralKeyWithSelfSignedCert
 import at.asitplus.wallet.lib.agent.EphemeralKeyWithoutCert
 import at.asitplus.wallet.lib.agent.Holder
 import at.asitplus.wallet.lib.agent.HolderAgent
+import at.asitplus.wallet.lib.agent.HolderDCQLQueryMatchingResult
 import at.asitplus.wallet.lib.agent.IssuerAgent
 import at.asitplus.wallet.lib.agent.KeyMaterial
 import at.asitplus.wallet.lib.agent.RandomSource
@@ -283,11 +286,12 @@ val OpenId4VpCombinedProtocolTest by matrixSuite {
             val preparationState =
                 it.holderOid4vp.startAuthorizationResponsePreparation(authnRequest.serialize()).getOrThrow()
 
-            val matchesWithBadQueryIdentifiers = it.holderAgent.matchDCQLQueryAgainstCredentialStoreV2(
-                dcqlRequest.dcqlQuery
-            ).getOrThrow().credentialQueryMatches.mapKeys {
-                DCQLCredentialQueryIdentifier(it.key.string + "1")
-            }
+            val matchesWithBadQueryIdentifiers = it.holderAgent
+                .matchPresentationRequestAgainstCredentialStore(dcqlRequest).getOrThrow()
+                .shouldBeInstanceOf<DCQLMatchingResult<SubjectCredentialStore.StoreEntry>>()
+                .matchingResult.credentialQueryMatches.mapKeys {
+                    DCQLCredentialQueryIdentifier(it.key.string + "1")
+                }
 
             val authnResponse = it.holderOid4vp.finalizeAuthorizationResponse(
                 preparationState = preparationState,
@@ -321,21 +325,24 @@ val OpenId4VpCombinedProtocolTest by matrixSuite {
                 RequestOptionsCredential(ConstantIndex.AtomicAttribute2023, SD_JWT)
             ).toDCQLRequest().shouldNotBeNull().dcqlQuery
 
-            val otherQueryWithOriginalIds = originalDcqlRequest.dcqlQuery.copy(
-                credentials = DCQLCredentialQueryList(
-                    originalDcqlRequest.dcqlQuery.credentials.zip(otherDcqlQuery.credentials) { good, bad ->
-                        when (bad) {
-                            is DCQLIsoMdocCredentialQuery -> bad.copy(id = good.id)
-                            is DCQLJwtVcCredentialQuery -> bad.copy(id = good.id)
-                            is DCQLSdJwtCredentialQuery -> bad.copy(id = good.id)
-                        }
-                    }.toNonEmptyList()
+            val otherQueryWithOriginalIds = CredentialPresentationRequest.DCQLRequest(
+                originalDcqlRequest.dcqlQuery.copy(
+                    credentials = DCQLCredentialQueryList(
+                        originalDcqlRequest.dcqlQuery.credentials.zip(otherDcqlQuery.credentials) { good, bad ->
+                            when (bad) {
+                                is DCQLIsoMdocCredentialQuery -> bad.copy(id = good.id)
+                                is DCQLJwtVcCredentialQuery -> bad.copy(id = good.id)
+                                is DCQLSdJwtCredentialQuery -> bad.copy(id = good.id)
+                            }
+                        }.toNonEmptyList()
+                    )
                 )
             )
 
-            val badMatches = it.holderAgent.matchDCQLQueryAgainstCredentialStoreV2(
-                otherQueryWithOriginalIds
-            ).getOrThrow().credentialQueryMatches
+            val badMatches = it.holderAgent
+                .matchPresentationRequestAgainstCredentialStore(otherQueryWithOriginalIds).getOrThrow()
+                .shouldBeInstanceOf<DCQLMatchingResult<SubjectCredentialStore.StoreEntry>>()
+                .matchingResult.credentialQueryMatches
 
             badMatches.values.flatten().forEach {
                 it.credential.shouldBeInstanceOf<SubjectCredentialStore.StoreEntry.SdJwt>()
@@ -371,9 +378,10 @@ val OpenId4VpCombinedProtocolTest by matrixSuite {
             val preparationState =
                 it.holderOid4vp.startAuthorizationResponsePreparation(authnRequest.serialize()).getOrThrow()
 
-            val goodMatches = it.holderAgent.matchDCQLQueryAgainstCredentialStoreV2(
-                dcqlRequest.dcqlQuery
-            ).getOrThrow().credentialQueryMatches
+            val goodMatches = it.holderAgent
+                .matchPresentationRequestAgainstCredentialStore(dcqlRequest).getOrThrow()
+                .shouldBeInstanceOf<DCQLMatchingResult<SubjectCredentialStore.StoreEntry>>()
+                .matchingResult.credentialQueryMatches
 
             val authnResponse = it.holderOid4vp.finalizeAuthorizationResponse(
                 preparationState = preparationState,

@@ -1,7 +1,6 @@
 package at.asitplus.wallet.lib.agent
 
 import at.asitplus.KmmResult
-import at.asitplus.catching
 import at.asitplus.dif.ConstraintField
 import at.asitplus.dif.FormatHolder
 import at.asitplus.dif.InputDescriptor
@@ -85,38 +84,10 @@ interface Holder {
     ): KmmResult<PresentationResponseParameters>
 
     /** Matches any supported presentation request while preserving its request-specific result type. */
-    @Suppress("DEPRECATION")
     suspend fun matchPresentationRequestAgainstCredentialStore(
         presentationRequest: CredentialPresentationRequest,
         filterByIds: Collection<String>? = null,
-    ): KmmResult<CredentialMatchingResult<SubjectCredentialStore.StoreEntry>> = catching {
-        when (presentationRequest) {
-            is CredentialPresentationRequest.DCQLRequest -> DCQLMatchingResult(
-                presentationRequest = presentationRequest,
-                matchingResult = matchDCQLQueryAgainstCredentialStoreV2(
-                    dcqlQuery = presentationRequest.dcqlQuery,
-                    filterByIds = filterByIds,
-                ).getOrThrow(),
-            )
-
-            is CredentialPresentationRequest.PresentationExchangeRequest -> PresentationExchangeMatchingResult(
-                presentationRequest = presentationRequest,
-                matchingResult = matchInputDescriptorsAgainstCredentialStoreV2(
-                    inputDescriptors = presentationRequest.presentationDefinition.inputDescriptors,
-                    fallbackFormatHolder = presentationRequest.fallbackFormatHolder,
-                    filterByIds = filterByIds,
-                ).getOrThrow(),
-            )
-
-            is CredentialPresentationRequest.IsoDeviceRetrieval -> IsoDeviceRetrievalMatchingResult(
-                presentationRequest = presentationRequest,
-                matchingResult = matchDeviceRetrievalAgainstCredentialStore(
-                    deviceRequest = presentationRequest.deviceRequest,
-                    filterByIds = filterByIds,
-                ).getOrThrow(),
-            )
-        }
-    }
+    ): KmmResult<CredentialMatchingResult<SubjectCredentialStore.StoreEntry>>
 
     /**
      * Creates a mapping from the input descriptors of the presentation definition to matching
@@ -129,6 +100,7 @@ interface Holder {
      *  authorization rules on attribute credentials that are to be disclosed.
      * @param filterByIds filter the list of possible credentials by the provided IDs
      */
+    @Deprecated("Use matchPresentationRequestAgainstCredentialStore instead")
     suspend fun matchInputDescriptorsAgainstCredentialStoreV2(
         inputDescriptors: Collection<InputDescriptor>,
         fallbackFormatHolder: FormatHolder? = null,
@@ -144,6 +116,13 @@ interface Holder {
      * @param deviceRequest from the ISO Device Retrieval Request
      * @param filterByIds filter the list of possible credentials by the provided IDs
      */
+    @Deprecated(
+        "Use matchPresentationRequestAgainstCredentialStore instead",
+        ReplaceWith(
+            "matchPresentationRequestAgainstCredentialStore(CredentialPresentationRequest.IsoDeviceRetrieval(deviceRequest), filterByIds)",
+            "at.asitplus.wallet.lib.data.CredentialPresentationRequest",
+        ),
+    )
     suspend fun matchDeviceRetrievalAgainstCredentialStore(
         deviceRequest: DeviceRequest,
         filterByIds: Collection<String>? = null
@@ -158,6 +137,7 @@ interface Holder {
      *  authorization rules on attribute credentials that are to be disclosed.
      * @return for each constraint field a set of matching nodes or null
      */
+    @Deprecated("Use matchPresentationRequestAgainstCredentialStore instead")
     fun evaluateInputDescriptorAgainstCredential(
         inputDescriptor: InputDescriptor,
         credential: SubjectCredentialStore.StoreEntry,
@@ -171,6 +151,13 @@ interface Holder {
      *
      * @param filterByIds filter the list of possible credentials by the provided IDs
      */
+    @Deprecated(
+        "Use matchPresentationRequestAgainstCredentialStore instead",
+        ReplaceWith(
+            "matchPresentationRequestAgainstCredentialStore(CredentialPresentationRequest.DCQLRequest(dcqlQuery), filterByIds)",
+            "at.asitplus.wallet.lib.data.CredentialPresentationRequest",
+        ),
+    )
     suspend fun matchDCQLQueryAgainstCredentialStoreV2(
         dcqlQuery: DCQLQuery,
         filterByIds: Collection<String>? = null

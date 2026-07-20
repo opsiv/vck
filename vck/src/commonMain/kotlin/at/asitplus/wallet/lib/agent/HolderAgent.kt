@@ -50,6 +50,8 @@ class HolderAgent @JvmOverloads constructor(
     private val difInputEvaluator: PresentationExchangeInputEvaluator = PresentationExchangeInputEvaluator,
 ) : Holder {
 
+    private val presentationResponseCreator = PresentationResponseCreator(verifiablePresentationFactory)
+
     /**
      * Stores the verifiable credential in [credential] if it parses and validates,
      * and returns it for future reference.
@@ -149,16 +151,58 @@ class HolderAgent @JvmOverloads constructor(
     ): KmmResult<PresentationResponseParameters> =
         createPresentation(request, credentialPresentationRequest.toCredentialPresentation())
 
+    /** Matches any supported presentation request while preserving its request-specific result type. */
+    @Suppress("DEPRECATION")
+    override suspend fun matchPresentationRequestAgainstCredentialStore(
+        presentationRequest: CredentialPresentationRequest,
+        filterByIds: Collection<String>?,
+    ): KmmResult<CredentialMatchingResult<StoreEntry>> = catching {
+        when (presentationRequest) {
+            is CredentialPresentationRequest.DCQLRequest -> DCQLMatchingResult(
+                presentationRequest = presentationRequest,
+                matchingResult = matchDCQLQueryAgainstCredentialStoreV2(
+                    dcqlQuery = presentationRequest.dcqlQuery,
+                    filterByIds = filterByIds,
+                ).getOrThrow(),
+            )
+
+            is CredentialPresentationRequest.PresentationExchangeRequest -> PresentationExchangeMatchingResult(
+                presentationRequest = presentationRequest,
+                matchingResult = matchInputDescriptorsAgainstCredentialStoreV2(
+                    inputDescriptors = presentationRequest.presentationDefinition.inputDescriptors,
+                    fallbackFormatHolder = presentationRequest.fallbackFormatHolder,
+                    filterByIds = filterByIds,
+                ).getOrThrow(),
+            )
+
+            is CredentialPresentationRequest.IsoDeviceRetrieval -> IsoDeviceRetrievalMatchingResult(
+                presentationRequest = presentationRequest,
+                matchingResult = matchDeviceRetrievalAgainstCredentialStore(
+                    deviceRequest = presentationRequest.deviceRequest,
+                    filterByIds = filterByIds,
+                ).getOrThrow(),
+            )
+        }
+    }
+
+    @Suppress("DEPRECATION")
     override suspend fun createPresentation(
         request: PresentationRequestParameters,
         credentialPresentation: CredentialPresentation,
-    ): KmmResult<PresentationResponseParameters> = PresentationResponseCreator.create(
-        holder = this,
-        verifiablePresentationFactory = verifiablePresentationFactory,
+    ): KmmResult<PresentationResponseParameters> = presentationResponseCreator.create(
         request = request,
         credentialPresentation = credentialPresentation,
+        matchDCQLQuery = { matchDCQLQueryAgainstCredentialStoreV2(it) },
+        matchDeviceRequest = { matchDeviceRetrievalAgainstCredentialStore(it) },
+        matchPresentationExchange = suspend {
+            matchInputDescriptorsAgainstCredentialStoreV2(
+                it.presentationDefinition.inputDescriptors,
+                it.fallbackFormatHolder,
+            )
+        },
     )
 
+    @Deprecated("Use matchPresentationRequestAgainstCredentialStore instead")
     override suspend fun matchInputDescriptorsAgainstCredentialStoreV2(
         inputDescriptors: Collection<InputDescriptor>,
         fallbackFormatHolder: FormatHolder?,
@@ -184,10 +228,12 @@ class HolderAgent @JvmOverloads constructor(
         queryMatchingResult = PresentationExchangeQueryMatchingResult(
             inputDescriptors.associateWith { inputDescriptor ->
                 credentials.map { credential ->
-                    evaluateInputDescriptorAgainstCredential(
+                    difInputEvaluator.evaluateInputDescriptorAgainstCredential(
                         inputDescriptor = inputDescriptor,
-                        credential = credential,
                         fallbackFormatHolder = fallbackFormatHolder,
+                        credentialClaimStructure = CredentialToJsonConverter.toJsonElement(credential),
+                        credentialFormat = credential.credentialFormat,
+                        credentialScheme = credential.schemeIdentifier,
                         pathAuthorizationValidator = {
                             pathAuthorizationValidator?.invoke(credential, it) ?: true
                         },
@@ -201,6 +247,13 @@ class HolderAgent @JvmOverloads constructor(
         )
     )
 
+    @Deprecated(
+        "Use matchPresentationRequestAgainstCredentialStore instead",
+        ReplaceWith(
+            "matchPresentationRequestAgainstCredentialStore(CredentialPresentationRequest.IsoDeviceRetrieval(deviceRequest), filterByIds)",
+            "at.asitplus.wallet.lib.data.CredentialPresentationRequest",
+        ),
+    )
     override suspend fun matchDeviceRetrievalAgainstCredentialStore(
         deviceRequest: DeviceRequest,
         filterByIds: Collection<String>?
@@ -213,6 +266,7 @@ class HolderAgent @JvmOverloads constructor(
         )
     }
 
+    @Deprecated("Use matchPresentationRequestAgainstCredentialStore instead")
     override fun evaluateInputDescriptorAgainstCredential(
         inputDescriptor: InputDescriptor,
         credential: StoreEntry,
@@ -227,6 +281,13 @@ class HolderAgent @JvmOverloads constructor(
         pathAuthorizationValidator = pathAuthorizationValidator,
     )
 
+    @Deprecated(
+        "Use matchPresentationRequestAgainstCredentialStore instead",
+        ReplaceWith(
+            "matchPresentationRequestAgainstCredentialStore(CredentialPresentationRequest.DCQLRequest(dcqlQuery), filterByIds)",
+            "at.asitplus.wallet.lib.data.CredentialPresentationRequest",
+        ),
+    )
     override suspend fun matchDCQLQueryAgainstCredentialStoreV2(
         dcqlQuery: DCQLQuery,
         filterByIds: Collection<String>?,

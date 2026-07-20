@@ -8,48 +8,64 @@ import at.asitplus.dif.ConstraintField
 import at.asitplus.dif.InputDescriptor
 import at.asitplus.dif.PresentationSubmission
 import at.asitplus.dif.PresentationSubmissionDescriptor
+import at.asitplus.iso.DeviceRequest
 import at.asitplus.jsonpath.core.NodeList
 import at.asitplus.openid.dcql.DCQLCredentialQueryMatchingResult
 import at.asitplus.openid.dcql.DCQLQuery
 import at.asitplus.wallet.lib.agent.SubjectCredentialStore.StoreEntry
 import at.asitplus.wallet.lib.data.CredentialPresentation
-import at.asitplus.wallet.lib.data.CredentialPresentationRequest
+import at.asitplus.wallet.lib.data.CredentialPresentationRequest.PresentationExchangeRequest
+import at.asitplus.wallet.lib.data.CredentialToJsonConverter
+import at.asitplus.wallet.lib.data.dif.PresentationExchangeInputEvaluator
 import at.asitplus.wallet.lib.data.dif.PresentationSubmissionValidator
 import at.asitplus.wallet.lib.procedures.iso.DeviceRetrievalProcedure
 import com.benasher44.uuid.uuid4
 
 /** Resolves and validates holder submissions before creating their format-specific response artifacts. */
-internal object PresentationResponseCreator {
+internal class PresentationResponseCreator(
+    private val verifiablePresentationFactory: VerifiablePresentationFactory,
+) {
+    private val difInputEvaluator: PresentationExchangeInputEvaluator = PresentationExchangeInputEvaluator
 
-    @Suppress("DEPRECATION")
     suspend fun create(
-        holder: Holder,
-        verifiablePresentationFactory: VerifiablePresentationFactory,
         request: PresentationRequestParameters,
         credentialPresentation: CredentialPresentation,
+        matchDCQLQuery: suspend (DCQLQuery) -> KmmResult<HolderDCQLQueryMatchingResult<StoreEntry>>,
+        matchDeviceRequest: suspend (DeviceRequest) -> KmmResult<HolderIsoDeviceRetrievalQueryMatchingResult<StoreEntry>>,
+        matchPresentationExchange: suspend (PresentationExchangeRequest) -> KmmResult<HolderPresentationExchangeQueryMatchingResult<StoreEntry>>,
     ): KmmResult<PresentationResponseParameters> = catching {
         when (credentialPresentation) {
             is CredentialPresentation.DCQLPresentation ->
-                createDcql(holder, verifiablePresentationFactory, request, credentialPresentation)
+                createDcql(
+                    request,
+                    credentialPresentation,
+                    matchDCQLQuery
+                )
 
             is CredentialPresentation.PresentationExchangePresentation ->
-                createPresentationExchange(holder, verifiablePresentationFactory, request, credentialPresentation)
+                createPresentationExchange(
+                    request,
+                    credentialPresentation,
+                    matchPresentationExchange
+                )
 
             is CredentialPresentation.IsoDeviceRetrievalPresentation ->
-                createDeviceResponse(holder, verifiablePresentationFactory, request, credentialPresentation)
+                createDeviceResponse(
+                    request,
+                    credentialPresentation,
+                    matchDeviceRequest
+                )
         }
     }
 
     private suspend fun createDcql(
-        holder: Holder,
-        factory: VerifiablePresentationFactory,
         request: PresentationRequestParameters,
         presentation: CredentialPresentation.DCQLPresentation,
+        matchDCQLQuery: suspend (DCQLQuery) -> KmmResult<HolderDCQLQueryMatchingResult<StoreEntry>>,
     ): PresentationResponseParameters.DCQLParameters {
         val dcqlQuery = presentation.presentationRequest.dcqlQuery
         val credentialSubmissions = presentation.credentialQuerySubmissions
-            ?: holder.matchDCQLQueryAgainstCredentialStoreV2(dcqlQuery).getOrThrow()
-                .toDefaultSubmission(dcqlQuery).getOrThrow()
+            ?: matchDCQLQuery(dcqlQuery).getOrThrow().toDefaultSubmission(dcqlQuery).getOrThrow()
 
         DCQLQuery.Procedures.checkCredentialSetQueryRequirements(
             credentialSubmissions = credentialSubmissions.keys,
@@ -71,7 +87,7 @@ internal object PresentationResponseCreator {
                     }
                     CreatePresentationResult.VcJws(credential.vcSerialized)
                 } else {
-                    factory.createVerifiablePresentation(
+                    verifiablePresentationFactory.createVerifiablePresentation(
                         request = request,
                         credential = credential,
                         disclosedAttributes = it.matchingResult,
@@ -84,17 +100,15 @@ internal object PresentationResponseCreator {
     }
 
     private suspend fun createDeviceResponse(
-        holder: Holder,
-        factory: VerifiablePresentationFactory,
         request: PresentationRequestParameters,
         presentation: CredentialPresentation.IsoDeviceRetrievalPresentation,
+        matchDeviceRequest: suspend (DeviceRequest) -> KmmResult<HolderIsoDeviceRetrievalQueryMatchingResult<StoreEntry>>,
     ): PresentationResponseParameters.DeviceRetrievalParameters {
         val deviceRequest = presentation.presentationRequest.deviceRequest
         val submissions = presentation.submissions
-            ?: holder.matchDeviceRetrievalAgainstCredentialStore(deviceRequest).getOrThrow()
-                .toDefaultSubmission().getOrThrow()
+            ?: matchDeviceRequest(deviceRequest).getOrThrow().toDefaultSubmission().getOrThrow()
         val selectedCredentials = DeviceRetrievalProcedure.validateSubmission(deviceRequest, submissions).getOrThrow()
-        val result = factory.createVerifiablePresentation(
+        val result = verifiablePresentationFactory.createVerifiablePresentation(
             request = request,
             credentialAndDisclosedAttributes = selectedCredentials,
         ).getOrThrow()
@@ -103,20 +117,16 @@ internal object PresentationResponseCreator {
 
     @Suppress("DEPRECATION")
     private suspend fun createPresentationExchange(
-        holder: Holder,
-        factory: VerifiablePresentationFactory,
         request: PresentationRequestParameters,
         presentation: CredentialPresentation.PresentationExchangePresentation,
+        matchPresentationExchange: suspend (PresentationExchangeRequest) -> KmmResult<HolderPresentationExchangeQueryMatchingResult<StoreEntry>>,
     ): PresentationResponseParameters.PresentationExchangeParameters {
         val presentationRequest = presentation.presentationRequest
         val presentationDefinition = presentationRequest.presentationDefinition
         val selection = presentation.inputDescriptorSubmissions
-            ?: holder.matchInputDescriptorsAgainstCredentialStoreV2(
-                inputDescriptors = presentationDefinition.inputDescriptors,
-                fallbackFormatHolder = presentationRequest.fallbackFormatHolder,
-            ).getOrThrow().toDefaultSubmission()
+            ?: matchPresentationExchange(presentation.presentationRequest).getOrThrow().toDefaultSubmission()
 
-        presentationRequest.validateSubmission(holder, selection)
+        presentationRequest.validateSubmission(selection)
             .onFailure { throw PresentationException(it) }
         val submissions = selection.mapValues {
             PresentationExchangeCredentialDisclosure(
@@ -133,7 +143,7 @@ internal object PresentationResponseCreator {
                     isSingleIsoMdocPresentation = true,
                 ),
                 presentationResults = listOf(
-                    factory.createVerifiablePresentation(
+                    verifiablePresentationFactory.createVerifiablePresentation(
                         request = request,
                         credentialAndDisclosedAttributes = submissions.associate {
                             it.second.credential as StoreEntry.Iso to it.second.disclosedAttributes
@@ -148,7 +158,7 @@ internal object PresentationResponseCreator {
                     matches = submissions,
                 ),
                 presentationResults = submissions.map { match ->
-                    factory.createVerifiablePresentation(
+                    verifiablePresentationFactory.createVerifiablePresentation(
                         request = request,
                         credential = match.second.credential,
                         disclosedAttributes = match.second.disclosedAttributes,
@@ -159,8 +169,7 @@ internal object PresentationResponseCreator {
     }
 
     @Suppress("DEPRECATION")
-    private fun CredentialPresentationRequest.PresentationExchangeRequest.validateSubmission(
-        holder: Holder,
+    private fun PresentationExchangeRequest.validateSubmission(
         credentialSubmissions: Map<String, PresentationExchangeCredentialDisclosure<StoreEntry>>,
     ) = catching {
         val validator = PresentationSubmissionValidator.createInstance(presentationDefinition).getOrThrow()
@@ -170,10 +179,13 @@ internal object PresentationResponseCreator {
             val inputDescriptor = presentationDefinition.inputDescriptors
                 .firstOrNull { it.id == submission.key }
                 ?: throw IllegalArgumentException("Invalid input descriptor id: ${submission.key}")
-            val constraintFieldMatches = holder.evaluateInputDescriptorAgainstCredential(
+            val credential = submission.value.credential
+            val constraintFieldMatches = difInputEvaluator.evaluateInputDescriptorAgainstCredential(
                 inputDescriptor = inputDescriptor,
-                credential = submission.value.credential,
                 fallbackFormatHolder = fallbackFormatHolder,
+                credentialClaimStructure = CredentialToJsonConverter.toJsonElement(credential),
+                credentialFormat = credential.credentialFormat,
+                credentialScheme = credential.schemeIdentifier,
                 pathAuthorizationValidator = { true },
             ).getOrThrow()
             val disclosedAttributes = submission.value.disclosedAttributes.map { it.toString() }

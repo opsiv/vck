@@ -10,6 +10,9 @@ Release 8.0.0 (unreleased):
     - Match every `DocRequest` against stored mdocs, requiring all requested data elements while preserving repeated docTypes and multiple matching credentials; validate explicit submissions and create a single, possibly multi-document `DeviceResponse`
     - Keep direct ISO Device Retrieval responses separate from OpenID4VP `vp_token` responses, and fix JSON round trips for ISO presentation requests
     - Migrate ISO/IEC 18013-7 Annex C holder and iOS pre-request matching from Presentation Exchange to ISO Device Retrieval; replace `IosDcApiMdocPreRequestSummary.toDifInputDescriptors()` with `toDeviceRequest()`
+    - Add `Holder.matchPresentationRequestAgainstCredentialStore()` as a protocol-neutral matching entry point and move `CredentialMatchingResult` with its `DCQLMatchingResult`, `IsoDeviceRetrievalMatchingResult`, and deprecated `PresentationExchangeMatchingResult` subtypes from `vck-openid` to `vck`
+    - Extract format-specific submission resolution, validation, and response creation from `HolderAgent` into an internal presentation response coordinator
+    - Deprecate format specific methods in `Holder`, all to be replaced with `matchPresentationRequestAgainstCredentialStore()`: `matchInputDescriptorsAgainstCredentialStoreV2()`, `matchDeviceRetrievalAgainstCredentialStore()`, `evaluateInputDescriptorAgainstCredential()`, `matchDCQLQueryAgainstCredentialStoreV2()`
 - Deprecations:
     - Remove code deprecated in 7.0.0, e.g. various `Iso180137AnnexC*` and related classes
     - Support all classes used for Presentation Exchange requests and so on, e.g., `CredentialPresentationRequest.PresentationExchangeRequest` or `PresentationExchangeCredentialDisclosure` or `CredentialPresentation.PresentationExchangePresentation`

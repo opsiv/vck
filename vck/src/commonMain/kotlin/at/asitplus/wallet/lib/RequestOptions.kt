@@ -97,7 +97,11 @@ data class RequestOptionsCredential(
         require(effectiveAttributes.all { it.segments.all { it is DCQLClaimsPathPointerSegment.NameSegment } }) {
             "ISO mdoc requested attribute paths must contain only name segments"
         }
-        val effectiveRequest = (effectiveAttributes.namespacedItems() + effectiveAttributes.singleClaimsItems()).toMap()
+        // Merge (don't overwrite) entries that land in the same namespace, e.g. a two-segment path whose namespace
+        // equals the scheme's default namespace plus one-segment paths under that same default namespace.
+        val effectiveRequest = (effectiveAttributes.namespacedItems() + effectiveAttributes.singleClaimsItems())
+            .groupBy({ it.first }, { it.second })
+            .mapValues { (_, lists) -> ItemsRequestList(lists.flatMap { it.entries }) }
         return DocRequest(
             itemsRequest = ByteStringWrapper(
                 ItemsRequest(

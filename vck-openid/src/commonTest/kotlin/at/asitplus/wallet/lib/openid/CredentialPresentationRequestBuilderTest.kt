@@ -220,4 +220,24 @@ val CredentialPresentationRequestBuilderTest by matrixSuite {
         ) shouldBe request
     }
 
+    test("iso device retrieval merges claims that land in the same namespace") {
+        // Regression: a one-segment path (default namespace) plus a two-segment path whose namespace equals that
+        // same default namespace must both survive, instead of one silently overwriting the other.
+        val request = CredentialPresentationRequestBuilder(
+            RequestOptionsCredential(
+                credentialScheme = ConstantIndex.AtomicAttribute2023,
+                representation = ISO_MDOC,
+                attributePaths = setOf(
+                    DCQLClaimsPathPointer(CLAIM_GIVEN_NAME),
+                    DCQLClaimsPathPointer(ConstantIndex.AtomicAttribute2023.isoNamespace, CLAIM_FAMILY_NAME),
+                ),
+            )
+        ).toIsoDeviceRetrievalRequest()
+
+        request.deviceRequest.docRequests.shouldBeSingleton().first()
+            .itemsRequest.value.namespaces
+            .getValue(ConstantIndex.AtomicAttribute2023.isoNamespace).entries
+            .map { it.dataElementIdentifier }.toSet() shouldBe setOf(CLAIM_GIVEN_NAME, CLAIM_FAMILY_NAME)
+    }
+
 }

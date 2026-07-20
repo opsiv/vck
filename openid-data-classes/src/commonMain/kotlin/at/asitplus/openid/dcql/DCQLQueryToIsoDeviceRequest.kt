@@ -20,7 +20,6 @@ fun DCQLQuery.toIso180137AnnexCDeviceRequest(): DeviceRequest = DeviceRequest(
     docRequests = credentials.map { it.toDocRequest() }.toTypedArray(),
 )
 
-// TODO Is this still necessary now?
 private fun DCQLCredentialQuery.toDocRequest(): DocRequest {
     require(this is DCQLIsoMdocCredentialQuery) {
         "Only mso_mdoc credential queries are supported for ISO 18013-7 Annex C, got $format"

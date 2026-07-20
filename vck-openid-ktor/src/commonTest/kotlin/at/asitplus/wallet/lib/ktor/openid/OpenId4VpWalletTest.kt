@@ -483,7 +483,8 @@ val OpenId4VpWalletTest by matrixSuite {
                     it.id
                 }.toSet() == matchingResult.matchingResult.toDefaultSubmission().keys
 
-                is IsoDeviceRetrievalMatchingResult<*> -> TODO()
+                // Not exercised here: this test only issues DCQL and Presentation Exchange requests.
+                is IsoDeviceRetrievalMatchingResult<*> -> false
             } shouldBe false
         }
     }

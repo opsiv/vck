@@ -44,6 +44,7 @@ import at.asitplus.wallet.lib.data.SelectiveDisclosureItem.Companion.hashDisclos
 import at.asitplus.wallet.lib.data.VerifiablePresentation
 import at.asitplus.wallet.lib.data.VerifiablePresentationJws
 import at.asitplus.wallet.lib.extensions.sdHashInput
+import at.asitplus.wallet.lib.iso.zk.IsoMdocZkProofRegistry
 import at.asitplus.wallet.lib.jws.JwsContentTypeConstants
 import at.asitplus.wallet.lib.jws.JwsHeaderCertOrJwk
 import at.asitplus.wallet.lib.jws.JwsHeaderNone
@@ -58,6 +59,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlin.collections.component1
 import kotlin.collections.component2
+import kotlin.collections.iterator
 import kotlin.time.Clock
 
 class VerifiablePresentationFactory(
@@ -191,44 +193,64 @@ class VerifiablePresentationFactory(
             require(parameters.presentationConstraints.isCompatibleWith(credential)) { "Constraints incompatible with Iso mDoc!" }
         }
 
-        val credentialAndZkDocuments = createZkDocuments(
-            request = request,
-            credentialAndPresentationParameters = credentialAndPresentationParameters.filter { (_, attributes) ->
-                (attributes.presentationConstraints is PresentationConstraints.IsoMdocZk) },
-        )
-        val credentialAndDocuments = createPlainDocuments(
-            request = request,
-            credentialAndPresentationParameters = credentialAndPresentationParameters.filter { (_, attributes) ->
-                (attributes.presentationConstraints !is PresentationConstraints.IsoMdocZk) },
-            // TODO: also consider the ones that failed in the zk flow
-        )
+        val zkDocuments = mutableListOf<ZkDocument>()
+        val plainDocuments = mutableListOf<Document>()
 
-        val zkDocuments = credentialAndZkDocuments.map {(_, doc) -> doc}.toTypedArray()
-        val documents = credentialAndDocuments.map {(_, doc) -> doc}.toTypedArray()
+        for ((credential, parameters) in credentialAndPresentationParameters) {
+            when (val result = createSingleDocument(request, credential, parameters)) {
+                is DocumentResult.Zk -> zkDocuments.add(result.document)
+                is DocumentResult.Plain -> plainDocuments.add(result.document)
+            }
+        }
 
         // TODO: Use [DeviceResponse.documentErrors] for error handling
 
         return CreatePresentationResult.DeviceResponse(
             deviceResponse = DeviceResponse(
                 parsedVersion = Version(1, 0),
-                zkDocuments = zkDocuments,
-                documents = documents,
+                zkDocuments = zkDocuments.toTypedArray(),
+                documents = plainDocuments.toTypedArray(),
                 status = 0U,
             ),
         )
     }
 
-    private suspend fun createZkDocuments(
+    internal suspend fun createSingleDocument(
         request: PresentationRequestParameters,
-        credentialAndPresentationParameters: Collection<Pair<StoreEntry.Iso, PresentationConstraintsAndClaims>>
-    ): Collection<Pair<StoreEntry.Iso, ZkDocument>> = TODO()
-
-    private suspend fun createPlainDocuments(
-        request: PresentationRequestParameters,
-        credentialAndPresentationParameters: Collection<Pair<StoreEntry.Iso, PresentationConstraintsAndClaims>>
-    ): Collection<Pair<StoreEntry.Iso, Document>> = credentialAndPresentationParameters.map { (credential, requestedClaims) ->
-            credential to credential.discloseRequestedClaims(requestedClaims.claims, request)
+        credential: StoreEntry.Iso,
+        parameters: PresentationConstraintsAndClaims
+    ): DocumentResult {
+        return if (parameters.presentationConstraints is PresentationConstraints.IsoMdocZk) {
+            try {
+                val zkDocument = createZkDocument(request, credential, parameters)
+                DocumentResult.Zk(zkDocument)
+            } catch (e: PresentationException) {
+                if (!parameters.presentationConstraints.request.zkRequired) {
+                    val plainDoc = createPlainDocument(request, credential, parameters)
+                    DocumentResult.Plain(plainDoc)
+                } else throw e
+            }
+        } else {
+            val plainDocument = createPlainDocument(request, credential, parameters)
+            DocumentResult.Plain(plainDocument)
         }
+    }
+
+    internal suspend fun createZkDocument(
+        request: PresentationRequestParameters,
+        credential: StoreEntry.Iso,
+        parameters: PresentationConstraintsAndClaims
+    ): ZkDocument = IsoMdocZkProofRegistry.generate(
+        request = request,
+        credential = credential,
+        parametersAndClaims = parameters
+    ).toZkDocument()
+
+    internal suspend fun createPlainDocument(
+        request: PresentationRequestParameters,
+        credential: StoreEntry.Iso,
+        parameters: PresentationConstraintsAndClaims
+    ): Document = credential.discloseRequestedClaims(parameters.claims, request)
 
 
     // allows disclosure of attributes from different namespaces

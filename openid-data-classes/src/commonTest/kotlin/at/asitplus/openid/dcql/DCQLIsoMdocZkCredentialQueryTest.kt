@@ -16,22 +16,24 @@ val DCQLIsoMdocZkCredentialQueryTest by matrixSuite {
             format = CredentialFormatEnum.MSO_MDOC_ZK,
             meta = DCQLIsoMdocZkCredentialMetadataAndValidityConstraints(
                 doctypeValue = "test",
-                zkSystemType = listOf(
-                    DCQLIsoMdocZkSystemSpec(
-                        id = "testId1",
-                        system = "testSystem",
-                        circuitHash = "testCircuitHash",
-                        numAttributes = 1,
-                        version = 3,
-                        blockEncHash = 3,
-                        blockEncSig = 7,
-                    ),
-                    DCQLIsoMdocZkSystemSpec(
-                        id = "testId2",
-                        system = "testSystem",
-                        circuitHash = "testCircuitHash",
-                        numAttributes = 3,
-                        version = 27
+                zkSystemType = DCQLIsoMdocZkSystemType(
+                    listOf(
+                        DCQLIsoMdocZkSystemSpec(
+                            zkSystemId = "testId1",
+                            system = "testSystem",
+                            circuitHash = "testCircuitHash",
+                            numAttributes = 1,
+                            version = 3,
+                            blockEncHash = 3,
+                            blockEncSig = 7,
+                        ),
+                        DCQLIsoMdocZkSystemSpec(
+                            zkSystemId = "testId2",
+                            system = "testSystem",
+                            circuitHash = "testCircuitHash",
+                            numAttributes = 3,
+                            version = 27
+                        )
                     )
                 )
             ),

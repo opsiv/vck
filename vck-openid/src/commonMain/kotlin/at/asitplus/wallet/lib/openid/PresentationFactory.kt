@@ -75,19 +75,23 @@ internal class PresentationFactory(
         }
         val responseWillBeEncrypted = jsonWebKeys != null
                 && (clientMetadata?.requestsEncryption() == true || request.responseMode?.requiresEncryption == true)
+        val sessionTranscript = calcSessionTranscript(
+            clientId = request.clientId,
+            responseUrl = request.responseUrl ?: request.redirectUrlExtracted,
+            nonce = nonce,
+            dcApiRequestCallingOrigin = dcApiRequestCallingOrigin,
+            jsonWebKeys = jsonWebKeys,
+            responseWillBeEncrypted = responseWillBeEncrypted
+        )
+
         val vpRequestParams = PresentationRequestParameters(
             nonce = nonce,
             audience = audience,
             transactionData = request.transactionData,
             calcIsoDeviceSignaturePlain = {
                 calcDeviceSignature(
-                    clientId = request.clientId,
-                    responseUrl = request.responseUrl ?: request.redirectUrlExtracted,
-                    nonce = nonce,
+                    sessionTranscript = sessionTranscript,
                     docType = it.docType,
-                    dcApiRequestCallingOrigin = dcApiRequestCallingOrigin,
-                    jsonWebKeys = jsonWebKeys,
-                    responseWillBeEncrypted = responseWillBeEncrypted
                 )
             }
         )
@@ -119,26 +123,14 @@ internal class PresentationFactory(
      */
     @Throws(PresentationException::class, CancellationException::class)
     private suspend fun calcDeviceSignature(
-        clientId: String?,
-        responseUrl: String?,
-        nonce: String,
+        sessionTranscript: SessionTranscript,
         docType: String,
-        dcApiRequestCallingOrigin: String?,
-        jsonWebKeys: Collection<JsonWebKey>?,
-        responseWillBeEncrypted: Boolean,
     ): CoseSigned<ByteArray> = signDeviceAuthDetached(
         protectedHeader = null,
         unprotectedHeader = null,
         payload = DeviceAuthentication(
             type = DeviceAuthentication.TYPE,
-            sessionTranscript = calcSessionTranscript(
-                clientId = clientId,
-                responseUrl = responseUrl,
-                nonce = nonce,
-                dcApiRequestCallingOrigin = dcApiRequestCallingOrigin,
-                jsonWebKeys = jsonWebKeys,
-                responseWillBeEncrypted = responseWillBeEncrypted
-            ),
+            sessionTranscript = sessionTranscript,
             docType = docType,
             namespaces = ByteStringWrapper(DeviceNameSpaces(mapOf()))
         ).wrap(),
@@ -147,6 +139,9 @@ internal class PresentationFactory(
         throw PresentationException("signDeviceAuthDetached failed", it)
     }
 
+    /**
+     * Performs calculation of the [SessionTranscript], according to OpenID4VP 1.0
+     */
     internal fun calcSessionTranscript(
         clientId: String? = null,
         responseUrl: String? = null,

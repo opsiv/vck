@@ -20,7 +20,7 @@ data class DCQLIsoMdocZkCredentialMetadataAndValidityConstraints(
      * See https://google.github.io/longfellow-zk/docs/protocols/
      */
     @SerialName(SerialNames.ZK_SYSTEM_TYPE)
-    val zkSystemType: List<DCQLIsoMdocZkSystemSpec>,
+    val zkSystemType: DCQLIsoMdocZkSystemType,
 
     ) : DCQLCredentialMetadataAndValidityConstraints {
     object SerialNames {
@@ -36,12 +36,6 @@ data class DCQLIsoMdocZkCredentialMetadataAndValidityConstraints(
         require(actualDoctypeValue == doctypeValue) {
             "Incompatible MDOC document type."
         }
-        require(!zkSystemType.isEmpty()) {
-            "No acceptable zero knowledge system types provided."
-        }
-        val ids = zkSystemType.map { it.id }
-        require(ids.size == ids.distinct().size) {
-            "ZkSystemType IDs are not unique! must be unique."
-        }
+        zkSystemType.validate()
     }
 }

@@ -23,6 +23,8 @@ import at.asitplus.iso.DeviceSigned
 import at.asitplus.iso.Document
 import at.asitplus.iso.IssuerSigned
 import at.asitplus.iso.IssuerSignedItem
+import at.asitplus.iso.ZkDocument
+import at.asitplus.iso.sha256
 import at.asitplus.jsonpath.core.NormalizedJsonPath
 import at.asitplus.jsonpath.core.NormalizedJsonPathSegment
 import at.asitplus.openid.dcql.DCQLClaimsQueryResult
@@ -54,6 +56,8 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlin.collections.component1
+import kotlin.collections.component2
 import kotlin.time.Clock
 
 class VerifiablePresentationFactory(
@@ -82,7 +86,9 @@ class VerifiablePresentationFactory(
     ): KmmResult<CreatePresentationResult.DeviceResponse> = catching {
         createIsoPresentation(
             request = request,
-            credentialAndRequestedClaims = credentialAndDisclosedAttributes,
+            credentialAndPresentationParameters = credentialAndDisclosedAttributes.map { (credential, attributes) ->
+                credential to PresentationConstraintsAndClaims(PresentationConstraints.None, attributes,)
+            },
         )
     }
 
@@ -105,7 +111,9 @@ class VerifiablePresentationFactory(
 
             is StoreEntry.Iso -> createIsoPresentation(
                 request = request,
-                credentialAndRequestedClaims = listOf(credential to disclosedAttributes),
+                credentialAndPresentationParameters = listOf(credential to PresentationConstraintsAndClaims(
+                    PresentationConstraints.None, disclosedAttributes
+                )),
             )
         }
     }
@@ -114,6 +122,7 @@ class VerifiablePresentationFactory(
         request: PresentationRequestParameters,
         credential: StoreEntry,
         disclosedAttributes: DCQLCredentialQueryMatchingResult,
+        presentationConstraints: PresentationConstraints,
     ): KmmResult<CreatePresentationResult> = catching {
         when (credential) {
             is StoreEntry.Vc -> if (disclosedAttributes !is AllClaimsMatchingResult) {
@@ -131,9 +140,9 @@ class VerifiablePresentationFactory(
 
             is StoreEntry.Iso -> createIsoPresentation(
                 request = request,
-                credentialAndRequestedClaims = listOf(
-                    credential to disclosedAttributes.toRequestedIsoClaims(credential)
-                ),
+                credentialAndPresentationParameters = listOf(credential to PresentationConstraintsAndClaims(
+                    presentationConstraints, disclosedAttributes.toRequestedIsoClaims(credential)
+                )),
             )
         }
     }
@@ -176,16 +185,51 @@ class VerifiablePresentationFactory(
 
     private suspend fun createIsoPresentation(
         request: PresentationRequestParameters,
-        credentialAndRequestedClaims: Collection<Pair<StoreEntry.Iso, Collection<NormalizedJsonPath>>>,
-    ) = CreatePresentationResult.DeviceResponse(
-        deviceResponse = DeviceResponse(
-            parsedVersion = Version(1, 0),
-            documents = credentialAndRequestedClaims.map { (credential, requestedClaims) ->
-                credential.discloseRequestedClaims(requestedClaims, request)
-            }.toTypedArray(),
-            status = 0U,
-        ),
-    )
+        credentialAndPresentationParameters: Collection<Pair<StoreEntry.Iso, PresentationConstraintsAndClaims>>,
+    ) : CreatePresentationResult.DeviceResponse {
+        credentialAndPresentationParameters.forEach { (credential, parameters) ->
+            require(parameters.presentationConstraints.isCompatibleWith(credential)) { "Constraints incompatible with Iso mDoc!" }
+        }
+
+        val credentialAndZkDocuments = createZkDocuments(
+            request = request,
+            credentialAndPresentationParameters = credentialAndPresentationParameters.filter { (_, attributes) ->
+                (attributes.presentationConstraints is PresentationConstraints.IsoMdocZk) },
+        )
+        val credentialAndDocuments = createPlainDocuments(
+            request = request,
+            credentialAndPresentationParameters = credentialAndPresentationParameters.filter { (_, attributes) ->
+                (attributes.presentationConstraints !is PresentationConstraints.IsoMdocZk) },
+            // TODO: also consider the ones that failed in the zk flow
+        )
+
+        val zkDocuments = credentialAndZkDocuments.map {(_, doc) -> doc}.toTypedArray()
+        val documents = credentialAndDocuments.map {(_, doc) -> doc}.toTypedArray()
+
+        // TODO: Use [DeviceResponse.documentErrors] for error handling
+
+        return CreatePresentationResult.DeviceResponse(
+            deviceResponse = DeviceResponse(
+                parsedVersion = Version(1, 0),
+                zkDocuments = zkDocuments,
+                documents = documents,
+                status = 0U,
+            ),
+        )
+    }
+
+    private suspend fun createZkDocuments(
+        request: PresentationRequestParameters,
+        credentialAndPresentationParameters: Collection<Pair<StoreEntry.Iso, PresentationConstraintsAndClaims>>
+    ): Collection<Pair<StoreEntry.Iso, ZkDocument>> = TODO()
+
+    private suspend fun createPlainDocuments(
+        request: PresentationRequestParameters,
+        credentialAndPresentationParameters: Collection<Pair<StoreEntry.Iso, PresentationConstraintsAndClaims>>
+    ): Collection<Pair<StoreEntry.Iso, Document>> = credentialAndPresentationParameters.map { (credential, requestedClaims) ->
+            credential to credential.discloseRequestedClaims(requestedClaims.claims, request)
+        }
+
 
     // allows disclosure of attributes from different namespaces
     private suspend fun StoreEntry.Iso.discloseRequestedClaims(

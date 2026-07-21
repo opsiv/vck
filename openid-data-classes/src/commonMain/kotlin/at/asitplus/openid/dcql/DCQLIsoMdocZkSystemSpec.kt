@@ -1,6 +1,6 @@
 package at.asitplus.openid.dcql
 
-import at.asitplus.iso.ZkSystemSpec
+import at.asitplus.iso.ZkSystem
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -11,10 +11,10 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class DCQLIsoMdocZkSystemSpec (
     @SerialName(PROP_ID)
-    val id: String,
+    override val zkSystemId: String,
 
     @SerialName(PROP_SYSTEM)
-    val system: String,
+    override val system: String,
 
     @SerialName(PROP_CIRCUIT_HASH)
     val circuitHash: String,
@@ -30,15 +30,9 @@ data class DCQLIsoMdocZkSystemSpec (
 
     @SerialName(PROP_BLOCK_ENC_SIG)
     val blockEncSig: Int? = null,
-) {
-    /**
-     * Converts this DCQL ZK system to [ZkSystemSpec] for use in ISO mDoc proof generation/verification
-     * defined in the ISO 18013-5 second edition, section 10.3.4
-     */
-    fun toIsoZkSystemSpec() = ZkSystemSpec(
-        zkSystemId = id,
-        system = system,
-        params = buildMap {
+): ZkSystem {
+    override val params: Map<String, Any>
+        get() = buildMap {
             put(PROP_CIRCUIT_HASH, circuitHash)
             put(PROP_NUM_ATTRIBUTES, numAttributes)
             put(PROP_VERSION, version)
@@ -46,7 +40,6 @@ data class DCQLIsoMdocZkSystemSpec (
             blockEncHash?.let{ put(PROP_BLOCK_ENC_HASH, it) }
             blockEncSig?.let{ put(PROP_BLOCK_ENC_SIG, it) }
         }
-    )
 
     companion object {
         const val PROP_ID = "id"

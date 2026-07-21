@@ -55,6 +55,11 @@ data class PresentationRequestParameters(
     val transactionDataHashesAlgorithm: Digest? = getCommonHashesAlgorithms(transactionData)?.first().toDigest()
 }
 
+data class PresentationConstraintsAndClaims(
+    val presentationConstraints: PresentationConstraints,
+    val claims: Collection<NormalizedJsonPath>,
+)
+
 data class IsoDeviceSignatureInput(
     val docType: String,
     val deviceNameSpaceBytes: ByteStringWrapper<DeviceNameSpaces>,

@@ -1,5 +1,6 @@
 package at.asitplus.iso
 
+import at.asitplus.signum.indispensable.Digest
 import at.asitplus.wallet.lib.data.rfc.tokenStatusList.RevocationListInfo
 import io.github.z4kn4fein.semver.Version
 import io.github.z4kn4fein.semver.toVersion
@@ -15,7 +16,8 @@ data class MobileSecurityObject(
     @Serializable(with = IsoVersionSerializer::class)
     val parsedVersion: Version,
     @SerialName("digestAlgorithm")
-    val digestAlgorithm: String,
+    @Serializable(with = IsoDigestSerializer::class)
+    val digest: Digest,
     @SerialName("valueDigests")
     val valueDigests: Map<String, ValueDigestList>,
     @SerialName("deviceKeyInfo")
@@ -39,13 +41,17 @@ data class MobileSecurityObject(
         status: RevocationListInfo? = null,
     ): this(
         parsedVersion = version.toVersion(strict = false),
-        digestAlgorithm = digestAlgorithm,
+        digest = digestAlgorithm.toDigest(),
         valueDigests = valueDigests,
         deviceKeyInfo = deviceKeyInfo,
         docType = docType,
         validityInfo = validityInfo,
         status = status
     )
+
+    @Deprecated("Use digest instead", ReplaceWith("digest.toIsoString()"))
+    val digestAlgorithm: String
+        get() = digest.toIsoString()
 
     @Deprecated("Use parsedVersion instead", ReplaceWith("parsedVersion.toIsoString()"))
     val version: String

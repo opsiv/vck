@@ -21,6 +21,7 @@ import at.asitplus.iso.ValidityInfo
 import at.asitplus.iso.ValueDigest
 import at.asitplus.iso.ValueDigestList
 import at.asitplus.openid.truncateToSeconds
+import at.asitplus.signum.indispensable.Digest
 import at.asitplus.signum.indispensable.SignatureAlgorithm
 import at.asitplus.signum.indispensable.cosef.toCoseKey
 import at.asitplus.signum.indispensable.josef.ConfirmationClaim
@@ -108,7 +109,7 @@ class IssuerAgent @JvmOverloads constructor(
         val deviceKeyInfo = DeviceKeyInfo(coseKey)
         val mso = MobileSecurityObject(
             parsedVersion = Version(1, 0),
-            digestAlgorithm = "SHA-256",
+            digest = Digest.SHA256, // TODO from value
             valueDigests = mapOf(
                 credential.scheme.isoNamespace to ValueDigestList(credential.issuerSignedItems.map {
                     ValueDigest.fromIssuerSignedItem(it, credential.scheme.isoNamespace)

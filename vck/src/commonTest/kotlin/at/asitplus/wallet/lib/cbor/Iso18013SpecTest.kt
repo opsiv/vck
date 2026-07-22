@@ -7,6 +7,8 @@ import at.asitplus.iso.IssuerSignedList
 import at.asitplus.iso.ItemsRequestList
 import at.asitplus.iso.MobileSecurityObject
 import at.asitplus.iso.ValueDigestList
+import at.asitplus.iso.toIsoString
+import at.asitplus.signum.indispensable.Digest
 import at.asitplus.signum.indispensable.cosef.CoseSigned
 import at.asitplus.signum.indispensable.cosef.io.coseCompliantSerializer
 import at.asitplus.testballoon.matrix.matrixSuite
@@ -295,7 +297,10 @@ val Iso18013SpecTest by matrixSuite {
         val mso = document.issuerSigned.issuerAuth.payload!!
 
         mso.parsedVersion shouldBe Version(1, 0)
+        mso.parsedVersion.toIsoString() shouldBe "1.0"
         mso.version shouldBe "1.0"
+        mso.digest shouldBe Digest.SHA256
+        mso.digest.toIsoString() shouldBe "SHA-256"
         mso.digestAlgorithm shouldBe "SHA-256"
         mso.docType shouldBe "org.iso.18013.5.1.mDL"
         mso.validityInfo.signed shouldBe Instant.parse("2020-10-01T13:30:02Z")
@@ -434,7 +439,10 @@ val Iso18013SpecTest by matrixSuite {
 
         val mso = coseSigned.payload!!
         mso.parsedVersion shouldBe Version(1, 0)
+        mso.parsedVersion.toIsoString() shouldBe "1.0"
         mso.version shouldBe "1.0"
+        mso.digest shouldBe Digest.SHA256
+        mso.digest.toIsoString() shouldBe "SHA-256"
         mso.digestAlgorithm shouldBe "SHA-256"
         mso.docType shouldBe "org.iso.18013.5.1.mDL"
         mso.validityInfo.signed shouldBe Instant.parse("2020-10-01T13:30:02Z")

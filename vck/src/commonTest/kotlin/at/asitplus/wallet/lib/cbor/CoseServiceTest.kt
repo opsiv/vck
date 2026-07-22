@@ -5,6 +5,7 @@ import at.asitplus.iso.MobileSecurityObject
 import at.asitplus.iso.ValidityInfo
 import at.asitplus.iso.ValueDigest
 import at.asitplus.iso.ValueDigestList
+import at.asitplus.signum.indispensable.Digest
 import at.asitplus.signum.indispensable.HMAC
 import at.asitplus.signum.indispensable.cosef.CoseAlgorithm
 import at.asitplus.signum.indispensable.cosef.CoseEllipticCurve
@@ -149,7 +150,7 @@ val CoseServiceTest by matrixSuite {
             val parameterSerializer = MobileSecurityObject.serializer()
             val mso = MobileSecurityObject(
                 parsedVersion = Version(1, 0),
-                digestAlgorithm = "SHA-256",
+                digest = Digest.SHA256,
                 valueDigests = mapOf(
                     "foo" to ValueDigestList(listOf(ValueDigest(0U, byteArrayOf())))
                 ),
@@ -187,7 +188,7 @@ val CoseServiceTest by matrixSuite {
             val parameterSerializer = MobileSecurityObject.serializer()
             val mso = MobileSecurityObject(
                 parsedVersion = Version(1, 0),
-                digestAlgorithm = "SHA-256",
+                digest = Digest.SHA256,
                 valueDigests = mapOf(
                     "foo" to ValueDigestList(listOf(ValueDigest(0U, byteArrayOf())))
                 ),

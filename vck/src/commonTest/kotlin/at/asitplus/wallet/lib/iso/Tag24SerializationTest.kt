@@ -18,6 +18,7 @@ import at.asitplus.iso.ValueDigestList
 import at.asitplus.iso.stripCborTag
 import at.asitplus.iso.wrapInCborTag
 import at.asitplus.signum.indispensable.CryptoSignature
+import at.asitplus.signum.indispensable.Digest
 import at.asitplus.signum.indispensable.cosef.CoseAlgorithm
 import at.asitplus.signum.indispensable.cosef.CoseEllipticCurve
 import at.asitplus.signum.indispensable.cosef.CoseHeader
@@ -150,7 +151,7 @@ val Tag24SerializationTest by matrixSuite {
     "IssuerAuth" {
         val mso = MobileSecurityObject(
             parsedVersion = Version(1, 0),
-            digestAlgorithm = "SHA-256",
+            digest = Digest.SHA256,
             valueDigests = mapOf("foo" to ValueDigestList(listOf(ValueDigest(0U, byteArrayOf())))),
             deviceKeyInfo = deviceKeyInfo(),
             docType = "docType",

@@ -38,7 +38,6 @@ val SerializationTest by matrixSuite {
         ),
         redirectUrl = randomString(),
         scope = randomString(),
-        walletIssuer = randomString(),
         userHint = randomString(),
         issuerState = randomString(),
         dcqlQuery = DCQLQuery(

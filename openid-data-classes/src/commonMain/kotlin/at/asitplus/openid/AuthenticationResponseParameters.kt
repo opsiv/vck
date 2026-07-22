@@ -25,9 +25,7 @@ data class AuthenticationResponseParameters(
      */
     val code: String? = null,
 
-    /**
-     * [IdToken] serialized, wrapped inside a JWS.
-     */
+    @Deprecated("Support for SIOPv2 has been removed")
     @SerialName("id_token")
     val idToken: String? = null,
 

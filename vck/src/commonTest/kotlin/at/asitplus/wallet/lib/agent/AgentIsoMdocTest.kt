@@ -38,6 +38,7 @@ import at.asitplus.wallet.lib.data.rfc.tokenStatusList.primitives.TokenStatusVal
 import at.asitplus.wallet.lib.data.rfc3986.toUri
 import at.asitplus.wallet.lib.randomCwtOrJwtResolver
 import com.benasher44.uuid.uuid4
+import io.github.z4kn4fein.semver.Version
 import io.kotest.matchers.collections.shouldBeSingleton
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.nulls.shouldNotBeNull
@@ -106,7 +107,7 @@ val AgentIsoMdocTest by matrixSuite {
                 "device retrieval: preserves repeated document requests" {
                     val request = CredentialPresentationRequest.IsoDeviceRetrieval(
                         DeviceRequest(
-                            version = "1.0",
+                            parsedVersion = Version(1, 0),
                             docRequests = arrayOf(
                                 isoDocRequest(CLAIM_GIVEN_NAME),
                                 isoDocRequest(CLAIM_DATE_OF_BIRTH),
@@ -238,7 +239,7 @@ val AgentIsoMdocTest by matrixSuite {
 }
 
 private fun isoDeviceRequest(vararg claimNames: String) = DeviceRequest(
-    version = "1.0",
+    parsedVersion = Version(1, 0),
     docRequests = arrayOf(isoDocRequest(*claimNames)),
 )
 

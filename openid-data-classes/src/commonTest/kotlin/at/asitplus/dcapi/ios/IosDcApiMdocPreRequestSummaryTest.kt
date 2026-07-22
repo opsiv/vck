@@ -15,7 +15,8 @@ import at.asitplus.signum.indispensable.cosef.CoseKeyParams
 import at.asitplus.signum.indispensable.cosef.CoseKeyType
 import at.asitplus.signum.indispensable.cosef.io.ByteStringWrapper
 import at.asitplus.testballoon.matrix.matrixSuite
-import io.kotest.matchers.collections.shouldHaveSize
+import io.github.z4kn4fein.semver.Version
+import io.kotest.matchers.collections.shouldBeSingleton
 import io.kotest.matchers.shouldBe
 
 val IosDcApiMdocPreRequestSummaryTest by matrixSuite {
@@ -126,16 +127,17 @@ val IosDcApiMdocPreRequestSummaryTest by matrixSuite {
             )
         )
 
-        val deviceRequest = summary.toDeviceRequest()
-
-        deviceRequest.version shouldBe "1.0"
-        deviceRequest.docRequests shouldHaveSize 1
-        deviceRequest.docRequests.single().itemsRequest.value.apply {
-            docType shouldBe "org.iso.18013.5.1.mDL"
-            namespaces["org.iso.18013.5.1"]!!.entries shouldBe listOf(
-                SingleItemsRequest("family_name", false),
-                SingleItemsRequest("given_name", true),
-            )
+        summary.toDeviceRequest().apply {
+            parsedVersion shouldBe Version(1, 0)
+            version shouldBe "1.0"
+            docRequests.shouldBeSingleton().single()
+                .itemsRequest.value.apply {
+                    docType shouldBe "org.iso.18013.5.1.mDL"
+                    namespaces["org.iso.18013.5.1"]!!.entries shouldBe listOf(
+                        SingleItemsRequest("family_name", false),
+                        SingleItemsRequest("given_name", true),
+                    )
+                }
         }
     }
 
@@ -220,7 +222,7 @@ val IosDcApiMdocPreRequestSummaryTest by matrixSuite {
 
 private fun rawRequest(vararg docs: Pair<String, Map<String, Map<String, Boolean>>>) = IsoMdocRequest(
     deviceRequest = DeviceRequest(
-        version = "1.0",
+        parsedVersion = Version(1, 0),
         docRequests = docs.map { (docType, namespaces) ->
             DocRequest(
                 itemsRequest = ByteStringWrapper(

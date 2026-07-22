@@ -11,6 +11,7 @@ import at.asitplus.signum.indispensable.cosef.CoseSigned
 import at.asitplus.signum.indispensable.cosef.io.coseCompliantSerializer
 import at.asitplus.testballoon.matrix.matrixSuite
 import at.asitplus.wallet.mdl.MDL_NAMESPACE
+import io.github.z4kn4fein.semver.Version
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.matthewnelson.encoding.base16.Base16
@@ -80,12 +81,11 @@ val Iso18013SpecTest by matrixSuite {
             9bb7f80bf
         """.trimIndent().replace("\n", "").uppercase()
 
-        val deviceRequest =
-            coseCompliantSerializer.decodeFromByteArray(
-                DeviceRequest.serializer(),
-                input.decodeToByteArray(Base16(true))
-            ).shouldNotBeNull()
-
+        val deviceRequest = coseCompliantSerializer.decodeFromByteArray(
+            DeviceRequest.serializer(),
+            input.decodeToByteArray(Base16(true))
+        ).shouldNotBeNull()
+        deviceRequest.parsedVersion shouldBe Version(1, 0)
         deviceRequest.version shouldBe "1.0"
         val docRequest = deviceRequest.docRequests.first()
         docRequest.shouldNotBeNull()
@@ -271,8 +271,9 @@ val Iso18013SpecTest by matrixSuite {
         """.trimIndent().replace("\n", "").uppercase().decodeToByteArray(Base16(true))
 
         val deviceResponse = coseCompliantSerializer.decodeFromByteArray<DeviceResponse>(input)
-
+        deviceResponse.parsedVersion shouldBe Version(1, 0)
         deviceResponse.version shouldBe "1.0"
+
         val document = deviceResponse.documents?.get(0)
         document.shouldNotBeNull()
         document.docType shouldBe "org.iso.18013.5.1.mDL"
@@ -293,6 +294,7 @@ val Iso18013SpecTest by matrixSuite {
 
         val mso = document.issuerSigned.issuerAuth.payload!!
 
+        mso.parsedVersion shouldBe Version(1, 0)
         mso.version shouldBe "1.0"
         mso.digestAlgorithm shouldBe "SHA-256"
         mso.docType shouldBe "org.iso.18013.5.1.mDL"
@@ -431,6 +433,7 @@ val Iso18013SpecTest by matrixSuite {
 
 
         val mso = coseSigned.payload!!
+        mso.parsedVersion shouldBe Version(1, 0)
         mso.version shouldBe "1.0"
         mso.digestAlgorithm shouldBe "SHA-256"
         mso.docType shouldBe "org.iso.18013.5.1.mDL"

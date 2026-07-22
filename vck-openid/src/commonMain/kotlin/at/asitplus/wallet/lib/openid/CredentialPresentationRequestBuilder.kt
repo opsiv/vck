@@ -68,7 +68,7 @@ data class CredentialPresentationRequestBuilder(
 
     fun toIsoDeviceRetrievalRequest() = CredentialPresentationRequest.IsoDeviceRetrieval(
         deviceRequest = DeviceRequest(
-            version = "1.0",
+            parsedVersion = io.github.z4kn4fein.semver.Version(1, 0),
             docRequests = credentials.map { it.toDocRequest() }.toTypedArray(),
             deviceRequestInfo = null,
             readerAuthAll = null,

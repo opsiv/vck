@@ -20,6 +20,7 @@ import at.asitplus.signum.indispensable.cosef.toCoseKey
 import at.asitplus.testballoon.matrix.fixture
 import at.asitplus.testballoon.matrix.matrixSuite
 import at.asitplus.wallet.lib.agent.EphemeralKeyWithoutCert
+import io.github.z4kn4fein.semver.Version
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
@@ -147,7 +148,7 @@ val CoseServiceTest by matrixSuite {
         test("signed object with MSO payload can be verified") {
             val parameterSerializer = MobileSecurityObject.serializer()
             val mso = MobileSecurityObject(
-                version = "1.0",
+                parsedVersion = Version(1, 0),
                 digestAlgorithm = "SHA-256",
                 valueDigests = mapOf(
                     "foo" to ValueDigestList(listOf(ValueDigest(0U, byteArrayOf())))
@@ -185,7 +186,7 @@ val CoseServiceTest by matrixSuite {
         test("maced object with MSO payload can be verified") {
             val parameterSerializer = MobileSecurityObject.serializer()
             val mso = MobileSecurityObject(
-                version = "1.0",
+                parsedVersion = Version(1, 0),
                 digestAlgorithm = "SHA-256",
                 valueDigests = mapOf(
                     "foo" to ValueDigestList(listOf(ValueDigest(0U, byteArrayOf())))

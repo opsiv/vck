@@ -5,6 +5,7 @@ import at.asitplus.iso.DeviceAuth
 import at.asitplus.iso.DeviceNameSpaces
 import at.asitplus.iso.DeviceSigned
 import at.asitplus.iso.Document
+import at.asitplus.signum.indispensable.Digest
 import at.asitplus.signum.indispensable.cosef.CoseKey
 import at.asitplus.signum.indispensable.cosef.io.ByteStringWrapper
 import at.asitplus.signum.indispensable.cosef.toCoseKey
@@ -126,7 +127,8 @@ val ValidatorMdocTest by matrixSuite {
                     verifierKeyMaterial.publicKey,
                     ConstantIndex.AtomicAttribute2023,
                     ISO_MDOC,
-                ).getOrThrow()
+                ).getOrThrow().shouldBeInstanceOf<CredentialToBeIssued.Iso>()
+                    .copy(digest = Digest.SHA384)
             ).getOrThrow()
                 .shouldBeInstanceOf<Issuer.IssuedCredential.Iso>()
 
@@ -148,6 +150,10 @@ val ValidatorMdocTest by matrixSuite {
 
             val parsed = validator.verifyDocument(document) { _, _ -> true }
 
+            parsed.mso.digest shouldBe Digest.SHA384
+            parsed.mso.valueDigests.values.single().entries.all { it.value.size == 48 } shouldBe true
+            parsed.validItems.size shouldBe 4
+            parsed.invalidItems shouldBe emptyList()
             parsed.documentErrors shouldBe documentErrors
         }
     }

@@ -161,6 +161,7 @@ val VerifiablePresentationFactoryTest by matrixSuite {
                 request = presentationRequest(),
                 credential = it.sdJwtCredential,
                 disclosedAttributes = AllClaimsMatchingResult,
+                presentationConstraints = PresentationConstraints.None,
             ).getOrThrow().shouldBeInstanceOf<CreatePresentationResult.SdJwt>()
                 .disclosedClaimNames().apply {
                     this shouldBe setOf(CLAIM_GIVEN_NAME, CLAIM_FAMILY_NAME, CLAIM_DATE_OF_BIRTH, CLAIM_PORTRAIT) +
@@ -173,6 +174,7 @@ val VerifiablePresentationFactoryTest by matrixSuite {
                 request = presentationRequest(),
                 credential = it.sdJwtCredential,
                 disclosedAttributes = AllMandatoryClaimsMatchingResult,
+                presentationConstraints = PresentationConstraints.None,
             ).getOrThrow().shouldBeInstanceOf<CreatePresentationResult.SdJwt>()
                 .disclosedClaimNames() shouldBe setOfDefaultSdJwtClaims
         }
@@ -191,6 +193,7 @@ val VerifiablePresentationFactoryTest by matrixSuite {
                         ),
                     )
                 ),
+                presentationConstraints = PresentationConstraints.None,
             ).getOrThrow().shouldBeInstanceOf<CreatePresentationResult.SdJwt>()
                 .disclosedClaimNames().apply {
                     this shouldBe setOf(CLAIM_GIVEN_NAME, CLAIM_DATE_OF_BIRTH) + setOfDefaultSdJwtClaims
@@ -249,6 +252,7 @@ val VerifiablePresentationFactoryTest by matrixSuite {
                 request = presentationRequest(),
                 credential = it.isoCredential,
                 disclosedAttributes = AllClaimsMatchingResult,
+                presentationConstraints = PresentationConstraints.None,
             ).getOrThrow().shouldBeInstanceOf<CreatePresentationResult.DeviceResponse>().apply {
                 disclosedIsoClaimNames(namespace).apply {
                     this shouldBe setOf(CLAIM_GIVEN_NAME, CLAIM_FAMILY_NAME, CLAIM_DATE_OF_BIRTH, CLAIM_PORTRAIT)
@@ -263,6 +267,7 @@ val VerifiablePresentationFactoryTest by matrixSuite {
                 request = presentationRequest(),
                 credential = it.isoCredential,
                 disclosedAttributes = AllMandatoryClaimsMatchingResult,
+                presentationConstraints = PresentationConstraints.None,
             ).getOrThrow().shouldBeInstanceOf<CreatePresentationResult.DeviceResponse>().apply {
                 disclosedIsoClaimNames(namespace).shouldBeEmpty()
             }
@@ -280,6 +285,7 @@ val VerifiablePresentationFactoryTest by matrixSuite {
                         IsoMdocResult(namespace, CLAIM_PORTRAIT, byteArrayOf(1)),
                     )
                 ),
+                presentationConstraints = PresentationConstraints.None,
             ).getOrThrow().shouldBeInstanceOf<CreatePresentationResult.DeviceResponse>().apply {
                 disclosedIsoClaimNames(namespace) shouldBe setOf(CLAIM_GIVEN_NAME, CLAIM_PORTRAIT)
             }

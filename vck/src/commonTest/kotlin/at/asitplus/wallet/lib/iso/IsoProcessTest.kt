@@ -19,6 +19,7 @@ import at.asitplus.iso.ValidityInfo
 import at.asitplus.iso.ValueDigest
 import at.asitplus.iso.ValueDigestList
 import at.asitplus.iso.sha256
+import at.asitplus.signum.indispensable.Digest
 import at.asitplus.signum.indispensable.cosef.CoseHeader
 import at.asitplus.signum.indispensable.cosef.CoseKey
 import at.asitplus.signum.indispensable.cosef.CoseSigned
@@ -132,7 +133,7 @@ class Issuer {
 
         val mso = MobileSecurityObject(
             parsedVersion = Version(1, 0),
-            digestAlgorithm = "SHA-256",
+            digest = Digest.SHA256,
             valueDigests = mapOf(
                 ConstantIndex.AtomicAttribute2023.isoNamespace to ValueDigestList(entries = issuerSigned.map {
                     ValueDigest.fromIssuerSignedItem(it, ConstantIndex.AtomicAttribute2023.isoNamespace)

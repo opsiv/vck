@@ -16,6 +16,7 @@ import at.asitplus.iso.ValueDigestList
 import at.asitplus.iso.sha256
 import at.asitplus.iso.wrapInCborTag
 import at.asitplus.signum.indispensable.CryptoSignature
+import at.asitplus.signum.indispensable.Digest
 import at.asitplus.signum.indispensable.cosef.CoseAlgorithm
 import at.asitplus.signum.indispensable.cosef.CoseEllipticCurve
 import at.asitplus.signum.indispensable.cosef.CoseHeader
@@ -63,7 +64,7 @@ val DocumentSerializationTest by matrixSuite {
             val protectedHeader = CoseHeader(algorithm = CoseAlgorithm.Signature.RS256)
             val mso = MobileSecurityObject(
                 parsedVersion = Version(1, 0),
-                digestAlgorithm = "SHA-256",
+                digest = Digest.SHA256,
                 valueDigests = mapOf(
                     it.namespace to ValueDigestList(
                         listOf(ValueDigest.Companion.fromIssuerSignedItem(item, it.namespace))

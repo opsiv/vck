@@ -15,13 +15,9 @@ import at.asitplus.iso.sha256
 import at.asitplus.iso.wrapInCborTag
 import at.asitplus.openid.AuthenticationRequestParameters
 import at.asitplus.openid.IdToken
-import at.asitplus.openid.OpenIdConstants
 import at.asitplus.openid.OpenIdConstants.VP_TOKEN
 import at.asitplus.openid.RelyingPartyMetadata
-import at.asitplus.openid.RequestParametersFrom
 import at.asitplus.openid.VpFormatsSupported
-import at.asitplus.openid.truncateToSeconds
-import at.asitplus.signum.indispensable.CryptoPublicKey
 import at.asitplus.signum.indispensable.SignatureAlgorithm
 import at.asitplus.signum.indispensable.cosef.CoseAlgorithm
 import at.asitplus.signum.indispensable.cosef.CoseSigned
@@ -30,8 +26,6 @@ import at.asitplus.signum.indispensable.cosef.io.coseCompliantSerializer
 import at.asitplus.signum.indispensable.cosef.toCoseAlgorithm
 import at.asitplus.signum.indispensable.josef.JsonWebKey
 import at.asitplus.signum.indispensable.josef.JwsAlgorithm
-import at.asitplus.signum.indispensable.josef.JwsCompactTyped
-import at.asitplus.signum.indispensable.josef.toJsonWebKey
 import at.asitplus.signum.indispensable.josef.toJwsAlgorithm
 import at.asitplus.wallet.lib.agent.CreatePresentationResult
 import at.asitplus.wallet.lib.agent.Holder
@@ -53,12 +47,11 @@ import io.matthewnelson.encoding.core.Encoder.Companion.encodeToString
 import kotlinx.serialization.builtins.ByteArraySerializer
 import kotlinx.serialization.encodeToByteArray
 import kotlin.coroutines.cancellation.CancellationException
-import kotlin.time.Clock
-import kotlin.time.Duration.Companion.seconds
 
 internal class PresentationFactory(
     private val supportedAlgorithms: Set<SignatureAlgorithm>,
     private val signDeviceAuthDetached: SignCoseDetachedFun<ByteArray>,
+    @Deprecated("Support for SIOPv2 has been removed")
     private val signIdToken: SignJwtFun<IdToken>,
 ) {
     private val supportedJwsAlgorithms = supportedAlgorithms
@@ -207,36 +200,6 @@ internal class PresentationFactory(
             Napier.d("Device authentication signature input is ${it.encodeToString(Base16())}")
         }
 
-    suspend fun createSignedIdToken(
-        clock: Clock,
-        agentPublicKey: CryptoPublicKey,
-        request: RequestParametersFrom<AuthenticationRequestParameters>,
-    ): KmmResult<JwsCompactTyped<IdToken>?> = catching {
-        if (request.parameters.responseType?.contains(OpenIdConstants.ID_TOKEN) != true) {
-            return@catching null
-        }
-        val nonce = request.parameters.nonce
-            ?: throw InvalidRequest("nonce is null")
-        val issuedAt = clock.now().truncateToSeconds()
-        // we'll assume jwk-thumbprint
-        val agentJsonWebKey = agentPublicKey.toJsonWebKey()
-        val audience = request.parameters.clientId
-            ?: request.parameters.redirectUrlExtracted
-            ?: agentJsonWebKey.jwkThumbprint
-        val idToken = IdToken(
-            issuer = agentJsonWebKey.jwkThumbprint,
-            subject = agentJsonWebKey.jwkThumbprint,
-            subjectJwk = agentJsonWebKey,
-            audience = audience,
-            issuedAt = issuedAt,
-            expiration = issuedAt + 60.seconds,
-            nonce = nonce,
-        )
-        signIdToken(null, idToken, IdToken.serializer()).getOrElse {
-            throw AccessDenied("Could not sign id_token", it)
-        }
-    }
-
     @Throws(OAuth2Exception::class)
     private fun AuthenticationRequestParameters.verifyResponseType() {
         if (responseType == null || !responseType!!.contains(VP_TOKEN)) {
@@ -244,6 +207,7 @@ internal class PresentationFactory(
         }
     }
 
+    @Suppress("DEPRECATION")
     @Throws(OAuth2Exception::class)
     private fun PresentationExchangeParameters.verifyFormatSupport(
         supportedFormats: VpFormatsSupported,

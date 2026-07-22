@@ -2,10 +2,7 @@ package at.asitplus.wallet.lib.openid
 
 import at.asitplus.KmmResult
 import at.asitplus.catching
-import at.asitplus.dif.FormatContainerJwt
-import at.asitplus.dif.FormatContainerSdJwt
 import at.asitplus.openid.AuthenticationRequestParameters
-import at.asitplus.openid.IdTokenType
 import at.asitplus.openid.RelyingPartyMetadata
 import at.asitplus.openid.RequestObjectParameters
 import at.asitplus.openid.ResponseParametersFrom
@@ -33,8 +30,8 @@ import kotlin.coroutines.cancellation.CancellationException
 
 /** How to populate `iss`/`aud` when signing an OpenID4VP request object. */
 internal sealed interface RequestObjectSigning {
-    /** SIOPv2 JAR: `aud` is the SIOPv2 identifier, `iss` likewise unless pre-registered. */
-    data object SiopJar : RequestObjectSigning
+    /** OpenID4VP over redirect (URL/QR): `aud` is the OID4VP §5.8 symbolic value, `iss` likewise. */
+    data object Redirect : RequestObjectSigning
 
     /** OpenID4VP over the DC API: `iss` is the client identifier (RFC 9101), no `aud`. */
     data object DcApi : RequestObjectSigning
@@ -69,11 +66,6 @@ internal class OpenId4VpRequestFactory(
         .mapNotNull { it.toJwsAlgorithm().getOrNull()?.identifier }
     private val supportedCoseAlgorithms = supportedAlgorithms
         .mapNotNull { it.toCoseAlgorithm().getOrNull()?.coseValue }
-    private val containerJwt = FormatContainerJwt(algorithmStrings = supportedJwsAlgorithms)
-    private val containerSdJwt = FormatContainerSdJwt(
-        sdJwtAlgorithmStrings = supportedJwsAlgorithms.toSet(),
-        kbJwtAlgorithmStrings = supportedJwsAlgorithms.toSet()
-    )
 
     /**
      * Creates the [at.asitplus.openid.RelyingPartyMetadata], without encryption (see [metadataWithEncryption])
@@ -130,9 +122,9 @@ internal class OpenId4VpRequestFactory(
         val preRegisteredIssuer = (clientIdScheme as? ClientIdScheme.PreRegistered)
             ?.let { it.issuerUri ?: it.clientId }
         val signedRequestObject = when (signing) {
-            RequestObjectSigning.SiopJar -> requestObject.copy(
-                audience = SIOP_V2_ISSUER,
-                issuer = preRegisteredIssuer ?: SIOP_V2_ISSUER,
+            RequestObjectSigning.Redirect -> requestObject.copy(
+                audience = SELF_ISSUED_AUDIENCE,
+                issuer = preRegisteredIssuer ?: SELF_ISSUED_AUDIENCE,
             )
 
             RequestObjectSigning.DcApi -> requestObject.copy(
@@ -196,12 +188,11 @@ internal class OpenId4VpRequestFactory(
         clientId = if (populateClientId) clientIdScheme.clientId else null,
         redirectUrl = if (!isAnyDirectPost) clientIdScheme.redirectUri else null,
         responseUrl = responseUrl,
-        // Using scope as an alias for a well-defined Presentation Exchange or DCQL is not supported
-        scope = if (isSiop) buildScope() else null,
+        // Using scope as an alias for a well-defined DCQL Query is not supported
+        scope = null,
         nonce = nonceService.provideNonce(),
         walletNonce = requestObjectParameters?.walletNonce,
         clientMetadata = clientMetadata(),
-        idTokenType = if (isSiop) IdTokenType.SUBJECT_SIGNED.text else null,
         responseMode = responseMode,
         // the DC API binds request and response through the browser, not through a `state`
         state = if (isAnyDcApi) null else state,
@@ -227,6 +218,11 @@ internal class OpenId4VpRequestFactory(
     private fun JsonWebKey.withAlgorithm(): JsonWebKey = this.copy(algorithm = JweAlgorithm.ECDH_ES)
 
     companion object {
-        private const val SIOP_V2_ISSUER = "https://self-issued.me/v2"
+        /**
+         * [OpenID4VP 5.8](https://openid.net/specs/openid-4-verifiable-presentations-1_0.html#name-aud-of-a-request-object)
+         * `https://self-issued.me/v2` is a symbolic string and can be used as an `aud` claim value even when this
+         * specification is used standalone, without SIOPv2.
+         */
+        private const val SELF_ISSUED_AUDIENCE = "https://self-issued.me/v2"
     }
 }

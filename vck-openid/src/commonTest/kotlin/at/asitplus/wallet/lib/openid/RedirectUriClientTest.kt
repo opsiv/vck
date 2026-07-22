@@ -17,7 +17,6 @@ import at.asitplus.openid.OpenIdConstants
 import at.asitplus.openid.RequestParametersFrom
 import at.asitplus.testballoon.matrix.fixture
 import at.asitplus.testballoon.matrix.matrixSuite
-import at.asitplus.wallet.lib.NonceService
 import at.asitplus.wallet.lib.RequestOptionsCredential
 import at.asitplus.wallet.lib.agent.EphemeralKeyWithoutCert
 import at.asitplus.wallet.lib.agent.Holder
@@ -109,34 +108,6 @@ val RedirectUriClientTest by matrixSuite {
                 .vp.freshVerifiableCredentials.shouldNotBeEmpty()
 
             verifySecondProtocolRun(it.verifierOid4vp, it.walletUrl, it.holderOid4vp)
-        }
-
-        "wrong client nonce in id_token should lead to error" {
-            val clientIdScheme = ClientIdScheme.RedirectUri(it.clientId)
-            val verifierOid4vp = OpenId4VpVerifier(
-                keyMaterial = it.verifierKeyMaterial,
-                clientIdScheme = clientIdScheme,
-                nonceService = object : NonceService {
-                    override suspend fun provideNonce() = uuid4().toString()
-                    override suspend fun verifyNonce(it: String) = false
-                    override suspend fun verifyAndRemoveNonce(it: String) = false
-                }
-            )
-            val requestOptions = OpenId4VpRequestOptions(
-                presentationRequest = CredentialPresentationRequestBuilder(
-                    RequestOptionsCredential(ConstantIndex.AtomicAttribute2023)
-                ).toDCQLRequest(),
-                responseType = OpenIdConstants.ID_TOKEN
-            )
-            val authnRequest = verifierOid4vp.createAuthnRequest(
-                requestOptions, CreationOptions.Query(it.walletUrl)
-            ).getOrThrow().url
-
-            val authnResponse = it.holderOid4vp.createAuthnResponse(authnRequest).getOrThrow()
-                .shouldBeInstanceOf<AuthenticationResponseResult.Redirect>()
-
-            verifierOid4vp.validateAuthnResponse(authnResponse.url).getOrThrow()
-                .idTokenValidationResult.shouldNotBeNull().isFailure shouldBe true
         }
 
         "wrong client nonce in vp_token should lead to error" {

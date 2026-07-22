@@ -33,9 +33,6 @@ data class OAuth2AuthorizationServerMetadata(
      * URL of the authorization server's authorization endpoint
      * `RFC6749`.  This is REQUIRED unless no grant types are supported
      * that use the authorization endpoint.
-     *
-     * OIDC SIOPv2: REQUIRED. URL of the Self-Issued OP used by the RP to perform Authentication of the End-User.
-     * Can be custom URI scheme, or Universal Links/App links.
      */
     @SerialName("authorization_endpoint")
     val authorizationEndpoint: String? = null,
@@ -84,9 +81,6 @@ data class OAuth2AuthorizationServerMetadata(
      * encryption keys are made available, a "use" (public key use)
      * parameter value is REQUIRED for all keys in the referenced JWK Set
      * to indicate each key's intended usage.
-     *
-     * OIDC SIOPv2: MUST NOT be present in Self-Issued OP Metadata. If it is, the RP MUST ignore it and use the `sub`
-     * Claim in the ID Token to obtain signing keys to validate the signatures from the Self-Issued OpenID Provider.
      */
     @SerialName("jwks_uri")
     val jsonWebKeySetUrl: String? = null,
@@ -103,9 +97,6 @@ data class OAuth2AuthorizationServerMetadata(
      * `RFC6749` "scope" values that this authorization server supports.
      * Servers MAY choose not to advertise some supported scope values
      * even when this parameter is used.
-     *
-     * OIDC SIOPv2: REQUIRED. A JSON array of strings representing supported scopes.
-     * MUST support the `openid` scope value.
      */
     @SerialName("scopes_supported")
     val scopesSupported: Set<String>? = null,
@@ -117,7 +108,7 @@ data class OAuth2AuthorizationServerMetadata(
      * "response_types" parameter defined by "OAuth 2.0 Dynamic Client
      * Registration Protocol" `RFC7591`.
      *
-     * OIDC SIOPv2: MUST be `id_token`.
+     * OID4VP: Static configuration value bound to `openid4vp://` is `vp_token`
      */
     @SerialName("response_types_supported")
     val responseTypesSupported: Set<String>? = null,
@@ -185,9 +176,11 @@ data class OAuth2AuthorizationServerMetadata(
     val idTokenSigningAlgorithmsSupportedStrings: Set<String>? = null,
 
     /**
-     * OIDC SIOPv2: REQUIRED. A JSON array containing a list of the JWS signing algorithms (alg values) supported by the
-     * OP for Request Objects, which are described in Section 6.1 of OpenID.Core.
-     * Valid values include `none`, `RS256`, `ES256`, `ES256K`, and `EdDSA`.
+     * OIDC Discovery: OPTIONAL. JSON array containing a list of the JWS signing algorithms (alg values) supported by
+     * the OP for Request Objects, which are described in
+     * [Section 6.1 of OpenID Connect Core 1.0](https://openid.net/specs/openid-connect-core-1_0.html#RequestObject).
+     * These algorithms are used both when the Request Object is passed by value (using the `request` parameter) and
+     * when it is passed by reference (using the `request_uri` parameter). Servers SHOULD support `none` and `RS256`.
      */
     @SerialName("request_object_signing_alg_values_supported")
     val requestObjectSigningAlgorithmsSupportedStrings: Set<String>? = null,
@@ -201,21 +194,11 @@ data class OAuth2AuthorizationServerMetadata(
     @SerialName("require_signed_request_object")
     val requireSignedRequestObject: Boolean? = null,
 
-    /**
-     * OIDC SIOPv2: REQUIRED. A JSON array of strings representing URI scheme identifiers and optionally method names of
-     * supported Subject Syntax Types.
-     * Valid values include `urn:ietf:params:oauth:jwk-thumbprint`, `did:example` and others.
-     */
     @SerialName("subject_syntax_types_supported")
-    // TODO Verify usage of "jwk", maybe remove did
+    @Deprecated("Support for SIOPv2 has been removed")
     val subjectSyntaxTypesSupported: Set<String>? = null,
 
-    /**
-     * OIDC SIOPv2: OPTIONAL. A JSON array of strings containing the list of ID Token types supported by the OP,
-     * the default value is `attester_signed_id_token` (the id token is issued by the party operating the OP, i.e. this
-     * is the classical id token as defined in OpenID.Core), may also include `subject_signed_id_token` (Self-Issued
-     * ID Token, i.e. the id token is signed with key material under the end-user's control).
-     */
+    @Suppress("DEPRECATION") @Deprecated("Support for SIOPv2 has been removed")
     @SerialName("id_token_types_supported")
     val idTokenTypesSupported: Set<IdTokenType>? = null,
 
@@ -421,9 +404,11 @@ data class OAuth2AuthorizationServerMetadata(
         ?.mapNotNull { it.toJwsAlgorithm() }?.toSet()
 
     /**
-     * OIDC SIOPv2: REQUIRED. A JSON array containing a list of the JWS signing algorithms (alg values) supported by the
-     * OP for Request Objects, which are described in Section 6.1 of OpenID.Core.
-     * Valid values include `none`, `RS256`, `ES256`, `ES256K`, and `EdDSA`.
+     * OIDC Discovery: OPTIONAL. JSON array containing a list of the JWS signing algorithms (alg values) supported by
+     * the OP for Request Objects, which are described in
+     * [Section 6.1 of OpenID Connect Core 1.0](https://openid.net/specs/openid-connect-core-1_0.html#RequestObject).
+     * These algorithms are used both when the Request Object is passed by value (using the `request` parameter) and
+     * when it is passed by reference (using the `request_uri` parameter). Servers SHOULD support `none` and `RS256`.
      */
     @Transient
     val requestObjectSigningAlgorithmsSupported: Set<JwsAlgorithm>? = requestObjectSigningAlgorithmsSupportedStrings

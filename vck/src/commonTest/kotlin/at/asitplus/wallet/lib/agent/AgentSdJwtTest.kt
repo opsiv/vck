@@ -12,6 +12,7 @@ import at.asitplus.openid.dcql.DCQLJsonClaimsQuery
 import at.asitplus.openid.dcql.DCQLQuery
 import at.asitplus.openid.dcql.DCQLSdJwtCredentialMetadataAndValidityConstraints
 import at.asitplus.openid.dcql.DCQLSdJwtCredentialQuery
+import at.asitplus.signum.indispensable.Digest
 import at.asitplus.signum.indispensable.josef.JwsCompact
 import at.asitplus.signum.indispensable.josef.JwsCompactTyped
 import at.asitplus.testballoon.matrix.fixture
@@ -73,7 +74,8 @@ val AgentSdJwtTest by matrixSuite {
                         holderKeyMaterial.publicKey,
                         ConstantIndex.AtomicAttribute2023,
                         SD_JWT,
-                    ).getOrThrow()
+                    ).getOrThrow().shouldBeInstanceOf<CredentialToBeIssued.VcSd>()
+                        .copy(sdAlgorithm = Digest.SHA256)
                 ).getOrThrow().toStoreCredentialInput()
             ).getOrThrow()
         }

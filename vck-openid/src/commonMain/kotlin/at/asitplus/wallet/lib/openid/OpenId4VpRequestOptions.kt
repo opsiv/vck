@@ -41,7 +41,7 @@ data class OpenId4VpRequestOptions(
     /**
      * Response type to set in [at.asitplus.openid.AuthenticationRequestParameters.responseType],
      * by default only `vp_token` (as per OpenID4VP spec, see [OpenIdConstants.VP_TOKEN]).
-     * Be sure to separate values by a space, e.g. `vp_token id_token` (see [OpenIdConstants.ID_TOKEN]).
+     * Note that support for requesting an `id_token` has been removed from this library.
      */
     val responseType: String = VP_TOKEN,
 
@@ -85,7 +85,7 @@ data class OpenId4VpRequestOptions(
     init {
         if (!transactionData.isNullOrEmpty()) {
             val transactionIds = transactionData.map { it.credentialIds.toList() }.flatten().toSet()
-            val credentialIds = when (presentationRequest) {
+            @Suppress("DEPRECATION") val credentialIds = when (presentationRequest) {
                 is DCQLRequest -> presentationRequest.dcqlQuery
                     .credentials.map { it.id.string }
 
@@ -101,7 +101,6 @@ data class OpenId4VpRequestOptions(
         }
         if (isAnyDcApi) {
             require(isDcql || isDeviceRetrieval) { "DC API only supports DCQL or DeviceRetrieval" }
-            require(!isSiop) { "DC API does not support SIOP (id_token)" }
             if (populateClientId) {
                 // should be a signed DC API request if client_id has to be assigned
                 expectedOrigins.requireIsNotNullOrEmpty { "Expected origins must be set for DC API" }
@@ -129,8 +128,10 @@ data class OpenId4VpRequestOptions(
     val isAnyDcApi: Boolean
         get() = responseMode == ResponseMode.DcApi || responseMode == ResponseMode.DcApiJwt
 
+    @Deprecated("Support for SIOPv2 has been removed")
     val isSiop: Boolean
         get() = responseType.contains(OpenIdConstants.ID_TOKEN)
 
+    @Deprecated("Support for SIOPv2 has been removed")
     fun buildScope(): String = listOf(SCOPE_OPENID, SCOPE_PROFILE).joinToString(" ")
 }

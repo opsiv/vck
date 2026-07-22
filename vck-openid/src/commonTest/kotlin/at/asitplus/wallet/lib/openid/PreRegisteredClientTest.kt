@@ -21,7 +21,6 @@ import at.asitplus.signum.indispensable.josef.JwsCompactTyped
 import at.asitplus.signum.indispensable.josef.io.joseCompliantSerializer
 import at.asitplus.testballoon.matrix.fixture
 import at.asitplus.testballoon.matrix.matrixSuite
-import at.asitplus.wallet.lib.NonceService
 import at.asitplus.wallet.lib.RequestOptionsCredential
 import at.asitplus.wallet.lib.agent.EphemeralKeyWithoutCert
 import at.asitplus.wallet.lib.agent.HolderAgent
@@ -167,34 +166,6 @@ val PreRegisteredClientTest by matrixSuite {
                 .shouldBeInstanceOf<Verifier.VerifyPresentationResult.Success>().apply {
                     vp.freshVerifiableCredentials.shouldNotBeEmpty()
                 }
-        }
-
-        "wrong client nonce in id_token should lead to error" {
-            val clientIdScheme = ClientIdScheme.PreRegistered(it.clientId, it.redirectUrl)
-            it.verifierOid4vp = OpenId4VpVerifier(
-                keyMaterial = it.verifierKeyMaterial,
-                clientIdScheme = clientIdScheme,
-                nonceService = object : NonceService {
-                    override suspend fun provideNonce() = uuid4().toString()
-                    override suspend fun verifyNonce(it: String) = false
-                    override suspend fun verifyAndRemoveNonce(it: String) = false
-                }
-            )
-            val requestOptions = OpenId4VpRequestOptions(
-                presentationRequest = CredentialPresentationRequestBuilder(
-                    RequestOptionsCredential(ConstantIndex.AtomicAttribute2023)
-                ).toDCQLRequest(),
-                responseType = OpenIdConstants.ID_TOKEN,
-            )
-            val authnRequest = it.verifierOid4vp.createAuthnRequest(
-                requestOptions, CreationOptions.Query(it.walletUrl)
-            ).getOrThrow().url
-
-            val authnResponse = it.holderOid4vp.createAuthnResponse(authnRequest).getOrThrow()
-                .shouldBeInstanceOf<AuthenticationResponseResult.Redirect>()
-
-            it.verifierOid4vp.validateAuthnResponse(authnResponse.url).getOrThrow()
-                .idTokenValidationResult.shouldNotBeNull().isFailure shouldBe true
         }
 
         "wrong client nonce in vp_token should lead to error" {

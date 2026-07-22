@@ -5,15 +5,11 @@ import at.asitplus.catching
 import at.asitplus.openid.AuthenticationRequestParameters
 import at.asitplus.openid.AuthenticationResponseParameters
 import at.asitplus.openid.IdToken
-import at.asitplus.openid.IdTokenType
 import at.asitplus.openid.JarRequestParameters
 import at.asitplus.openid.OAuth2AuthorizationServerMetadata
 import at.asitplus.openid.OpenIdConstants
-import at.asitplus.openid.OpenIdConstants.BINDING_METHOD_JWK
 import at.asitplus.openid.OpenIdConstants.ClientIdScheme
 import at.asitplus.openid.OpenIdConstants.Errors.INVALID_REQUEST
-import at.asitplus.openid.OpenIdConstants.PREFIX_DID_KEY
-import at.asitplus.openid.OpenIdConstants.URN_TYPE_JWK_THUMBPRINT
 import at.asitplus.openid.OpenIdConstants.VP_TOKEN
 import at.asitplus.openid.RelyingPartyMetadata
 import at.asitplus.openid.RequestObjectParameters
@@ -35,14 +31,11 @@ import at.asitplus.signum.indispensable.josef.toJwsAlgorithm
 import at.asitplus.signum.supreme.UserInitiatedCancellationReason
 import at.asitplus.wallet.lib.RemoteResourceRetrieverFunction
 import at.asitplus.wallet.lib.RemoteResourceRetrieverInput
-import at.asitplus.wallet.lib.agent.CredentialMatchingResult as HolderCredentialMatchingResult
 import at.asitplus.wallet.lib.agent.EphemeralKeyWithoutCert
 import at.asitplus.wallet.lib.agent.Holder
 import at.asitplus.wallet.lib.agent.HolderAgent
 import at.asitplus.wallet.lib.agent.KeyMaterial
-import at.asitplus.wallet.lib.agent.PresentationResponseParameters.DCQLParameters
-import at.asitplus.wallet.lib.agent.PresentationResponseParameters.DeviceRetrievalParameters
-import at.asitplus.wallet.lib.agent.PresentationResponseParameters.PresentationExchangeParameters
+import at.asitplus.wallet.lib.agent.PresentationResponseParameters.*
 import at.asitplus.wallet.lib.agent.RandomSource
 import at.asitplus.wallet.lib.agent.SubjectCredentialStore
 import at.asitplus.wallet.lib.cbor.CoseHeaderNone
@@ -64,11 +57,11 @@ import at.asitplus.wallet.lib.utils.MapStore
 import com.benasher44.uuid.uuid4
 import kotlin.jvm.JvmOverloads
 import kotlin.time.Clock
+import at.asitplus.wallet.lib.agent.CredentialMatchingResult as HolderCredentialMatchingResult
 
 /**
  * Combines Verifiable Presentations with OAuth 2.0.
- * Implements [OpenID4VP](https://openid.net/specs/openid-4-verifiable-presentations-1_0.html) (1.0, 2025-07-09)
- * as well as [SIOP V2](https://openid.net/specs/openid-connect-self-issued-v2-1_0.html) (D13, 2023-11-28).
+ * Implements [OpenID4VP](https://openid.net/specs/openid-4-verifiable-presentations-1_0.html) (1.0, 2025-07-09).
  *
  * The verifier (see [OpenId4VpVerifier]) creates the Authentication Request,
  * we can parse and validate it in [startAuthorizationResponsePreparation],
@@ -80,7 +73,7 @@ class OpenId4VpHolder @JvmOverloads constructor(
     private val keyMaterial: KeyMaterial = EphemeralKeyWithoutCert(),
     /** Holds the credentials and creates the verifiable presentation. */
     private val holder: Holder = HolderAgent(keyMaterial),
-    /** Signs the ID token for SIOPv2 responses. */
+    @Deprecated("Support for SIOPv2 has been removed")
     private val signIdToken: SignJwtFun<IdToken> = SignJwt(keyMaterial, JwsHeaderCertOrJwk()),
     /** Encrypts the authn response to the holder using [keyMaterial], if requested. */
     private val encryptJarm: EncryptJweFun = EncryptJwe(keyMaterial),
@@ -89,7 +82,7 @@ class OpenId4VpHolder @JvmOverloads constructor(
     /** Signs the session transcript for mDoc responses. */
     private val signDeviceAuthDetached: SignCoseDetachedFun<ByteArray> =
         SignCoseDetached(keyMaterial, CoseHeaderNone(), CoseHeaderNone()),
-    /** Clock used for the signed ID token. */
+    @Deprecated("Support for SIOPv2 has been removed")
     private val clock: Clock = Clock.System,
     /** Advertised as `issuer` in [metadata]. */
     private val clientId: String = "https://wallet.a-sit.at/",
@@ -146,6 +139,7 @@ class OpenId4VpHolder @JvmOverloads constructor(
         encryptResponse = encryptJarm,
         randomSource = randomSource
     )
+    @Suppress("DEPRECATION")
     private val presentationFactory = PresentationFactory(
         supportedAlgorithms = supportedAlgorithms,
         signDeviceAuthDetached = signDeviceAuthDetached,
@@ -156,12 +150,10 @@ class OpenId4VpHolder @JvmOverloads constructor(
         OAuth2AuthorizationServerMetadata(
             issuer = clientId,
             authorizationEndpoint = authorizationEndpoint,
-            responseTypesSupported = setOf(OpenIdConstants.ID_TOKEN, VP_TOKEN),
+            responseTypesSupported = setOf(VP_TOKEN),
             scopesSupported = setOf(OpenIdConstants.SCOPE_OPENID),
             idTokenSigningAlgorithmsSupportedStrings = supportedJwsAlgorithms.toSet(),
             requestObjectSigningAlgorithmsSupportedStrings = supportedJwsAlgorithms.toSet(),
-            subjectSyntaxTypesSupported = setOf(URN_TYPE_JWK_THUMBPRINT, PREFIX_DID_KEY, BINDING_METHOD_JWK),
-            idTokenTypesSupported = setOf(IdTokenType.SUBJECT_SIGNED),
             presentationDefinitionUriSupported = false,
             clientIdPrefixesSupported = listOf(
                 ClientIdScheme.PreRegistered,
@@ -343,8 +335,6 @@ class OpenId4VpHolder @JvmOverloads constructor(
         credentialPresentation: CredentialPresentation? = null,
     ): KmmResult<AuthenticationResponse> = catching {
         with(state) {
-            val idToken = presentationFactory.createSignedIdToken(clock, keyMaterial.publicKey, request)
-                .getOrNull()
             val presentation = credentialPresentation ?: credentialPresentationRequest?.toCredentialPresentation()
             val resultContainer = presentation?.let {
                 presentationFactory.createPresentation(
@@ -356,7 +346,6 @@ class OpenId4VpHolder @JvmOverloads constructor(
 
             val parameters = AuthenticationResponseParameters(
                 state = request.parameters.state,
-                idToken = idToken?.toString(),
                 vpToken = when (resultContainer) {
                     null -> null
                     is DCQLParameters -> resultContainer.vpToken

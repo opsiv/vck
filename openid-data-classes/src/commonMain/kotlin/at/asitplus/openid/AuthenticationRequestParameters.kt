@@ -32,7 +32,7 @@ data class AuthenticationRequestParameters(
      * Response Type contains one of more space characters (%20), it is compared as a space-delimited list of values in
      * which the order of values does not matter.
      *
-     * For OIDC SIOPv2, this is typically `id_token`. For OID4VP, this is typically `vp_token`.
+     * For OpenID4VP, this is typically `vp_token`.
      *
      * Optional when JAR (RFC9101) is used.
      */
@@ -112,10 +112,6 @@ data class AuthenticationRequestParameters(
     val claims: AuthnRequestClaims? = null,
 
     /**
-     * OIDC SIOPv2: OPTIONAL. This parameter is used by the RP to provide information about itself to a Self-Issued OP
-     * that would normally be provided to an OP during Dynamic RP Registration.
-     * It MUST not be present if the RP uses OpenID Federation 1.0 Automatic Registration to pass its metadata.
-     *
      * OID4VP 1.0: OPTIONAL. Authoritative data the Wallet is able to obtain about the
      * Client from other sources, for example those from an OpenID Federation
      * Entity Statement, take precedence over the values passed in client_metadata.
@@ -123,25 +119,10 @@ data class AuthenticationRequestParameters(
     @SerialName("client_metadata")
     val clientMetadata: RelyingPartyMetadata? = null,
 
-    /**
-     * OIDC: OPTIONAL. ID Token previously issued by the Authorization Server being passed as a hint about the
-     * End-User's current or past authenticated session with the Client. If the End-User identified by the ID Token is
-     * logged in or is logged in by the request, then the Authorization Server returns a positive response; otherwise,
-     * it SHOULD return an error, such as login_required.
-     */
-    @SerialName("id_token_hint")
+    @Deprecated("Support for SIOPv2 has been removed")
     val idTokenHint: String? = null,
 
-    /**
-     * OIDC SIOPv2: OPTIONAL. Space-separated string that specifies the types of ID Token the RP wants to obtain, with
-     * the values appearing in order of preference. The allowed individual values are `subject_signed_id_token` and
-     * `attester_signed_id_token`. The default value is `attester_signed_id_token`. The RP determines the type if
-     * ID Token returned based on the comparison of the `iss` and `sub` claims values. In order to preserve
-     * compatibility with existing OpenID Connect deployments, the OP MAY return an ID Token that does not fulfill the
-     * requirements as expressed in this parameter. So the RP SHOULD be prepared to reliably handle such an outcome.
-     *
-     * See [IdTokenType] for valid values.
-     */
+    @Deprecated("Support for SIOPv2 has been removed")
     @SerialName("id_token_type")
     val idTokenType: String? = null,
 
@@ -173,11 +154,7 @@ data class AuthenticationRequestParameters(
     @SerialName("authorization_details")
     val authorizationDetails: Set<AuthorizationDetails>? = null,
 
-    /**
-     * OID4VP: OPTIONAL. String containing the Wallet's identifier. The Credential Issuer can use the discovery process
-     * defined in SIOPv2 to determine the Wallet's capabilities and endpoints, using the `wallet_issuer` value as the
-     * Issuer Identifier referred to in SIOPv2. This is RECOMMENDED in Dynamic Credential Requests.
-     */
+    @Deprecated("Support for SIOPv2 has been removed")
     @SerialName("wallet_issuer")
     val walletIssuer: String? = null,
 
@@ -203,10 +180,6 @@ data class AuthenticationRequestParameters(
      * OAuth 2.0 Responses: OPTIONAL. Informs the Authorization Server of the mechanism to be used for returning
      * Authorization Response parameters from the Authorization Endpoint. This use of this parameter is NOT RECOMMENDED
      * with a value that specifies the same Response Mode as the default Response Mode for the Response Type used.
-     *
-     * OIDC SIOPv2: This response mode `post` is used to request the Self-Issued OP to deliver the result of the
-     * authentication process to a certain endpoint using the HTTP POST method.
-     *
      */
     @SerialName("response_mode")
     val responseMode: OpenIdConstants.ResponseMode? = null,
@@ -235,7 +208,8 @@ data class AuthenticationRequestParameters(
      * (audience) as members with their semantics being the same as defined in the JWT (RFC7519) specification. The
      * value of `aud` should be the value of the authorization server (AS) `issuer`, as defined in RFC 8414.
      *
-     * OpenID4VP 1.0: The iss claim MAY be present in the Request Object. However, even if it is present, the Wallet MUST ignore it
+     * OpenID4VP 1.0: The `iss` claim MAY be present in the Request Object. However, even if it is present, the Wallet
+     * MUST ignore it.
      */
     @SerialName("iss")
     val issuer: String? = null,
@@ -346,8 +320,8 @@ data class AuthenticationRequestParameters(
     val clientData: String? = null,
 
     /**
-     * OID4VP 1.0: OPTIONAL. Non-empty array of strings, where each string is a base64url-encoded JSON object that contains
-     * a typed parameter set with details about the transaction that the Verifier is requesting
+     * OID4VP 1.0: OPTIONAL. Non-empty array of strings, where each string is a base64url-encoded JSON object that
+     * contains a typed parameter set with details about the transaction that the Verifier is requesting
      * the End-User to authorize. The Wallet MUST return an error if a request contains even one unrecognized
      * transaction data type or transaction data not conforming to the respective type definition.
      */
@@ -410,6 +384,7 @@ data class AuthenticationRequestParameters(
         return expected.any { expectedOrigin -> expectedOrigin == actualOrigin }
     }
 
+    @Suppress("DEPRECATION")
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other == null || this::class != other::class) return false
@@ -458,6 +433,7 @@ data class AuthenticationRequestParameters(
         return true
     }
 
+    @Suppress("DEPRECATION")
     override fun hashCode(): Int {
         var result = numSignatures ?: 0
         result = 31 * result + (responseType?.hashCode() ?: 0)

@@ -3,7 +3,6 @@ package at.asitplus.wallet.lib.openid
 import at.asitplus.KmmResult
 import at.asitplus.catching
 import at.asitplus.openid.AuthenticationRequestParameters
-import at.asitplus.openid.IdToken
 import at.asitplus.openid.JarRequestParameters
 import at.asitplus.openid.OpenIdConstants
 import at.asitplus.openid.RelyingPartyMetadata
@@ -43,8 +42,7 @@ import kotlin.time.toDuration
 
 /**
  * Combines Verifiable Presentations with OAuth 2.0.
- * Implements [OpenID4VP](https://openid.net/specs/openid-4-verifiable-presentations-1_0.html) (1.0, 2025-07-09)
- * as well as [SIOP V2](https://openid.net/specs/openid-connect-self-issued-v2-1_0.html) (D13, 2023-11-28).
+ * Implements [OpenID4VP](https://openid.net/specs/openid-4-verifiable-presentations-1_0.html) (1.0, 2025-07-09).
  *
  * This class creates the Authentication Request (see [AuthenticationRequestParameters]),
  * clients need to send it to the holder (see [OpenId4VpHolder]) which will create the Authentication Response,
@@ -72,7 +70,7 @@ class OpenId4VpVerifier @JvmOverloads constructor(
     private val verifyCoseSignature: VerifyCoseSignatureWithKeyFun<ByteArray> = VerifyCoseSignatureWithKey(),
     /** Leeway for time validity checks. */
     timeLeewaySeconds: Long = 300L,
-    /** Clock for time validity checks. */
+    @Deprecated("Support for SIOPv2 has been removed")
     private val clock: Clock = Clock.System,
     /** Creates and validates OpenID4VP request nonces. */
     private val nonceService: NonceService = DefaultNonceService(),
@@ -187,7 +185,7 @@ class OpenId4VpVerifier @JvmOverloads constructor(
         requestOptions: OpenId4VpRequestOptions,
         requestObjectParameters: RequestObjectParameters? = null,
     ): KmmResult<JwsCompactTyped<AuthenticationRequestParameters>> =
-        requestFactory.createSignedRequestObject(requestOptions, RequestObjectSigning.SiopJar, requestObjectParameters)
+        requestFactory.createSignedRequestObject(requestOptions, RequestObjectSigning.Redirect, requestObjectParameters)
 
     internal suspend fun createPlainAuthnRequest(
         requestOptions: OpenId4VpRequestOptions,
@@ -221,26 +219,17 @@ class OpenId4VpVerifier @JvmOverloads constructor(
         require(responseType != null) {
             "No response type was specified in the original authentication request."
         }
+        require(OpenIdConstants.VP_TOKEN in responseType) {
+            "Response type must contain `vp_token`"
+        }
 
         val expectedNonce = authnRequest.nonce
             ?: throw IllegalArgumentException("nonce not present in $authnRequest")
-        val idTokenValidationResult = if (OpenIdConstants.ID_TOKEN in responseType) {
-            extractValidatedIdToken(input, expectedNonce)
-        } else {
-            null
-        }
-        val vpTokenValidationResult = if (OpenIdConstants.VP_TOKEN in responseType) {
-            validateVpToken(authnRequest, input)
-        } else {
-            null
-        }
 
-        require(listOfNotNull(idTokenValidationResult, vpTokenValidationResult).isNotEmpty()) {
-            "Unsupported response type: $responseType"
-        }
+        val vpTokenValidationResult = validateVpToken(authnRequest, input)
 
         AuthnResponseResult(
-            idTokenValidationResult = idTokenValidationResult,
+            idTokenValidationResult = null,
             vpTokenValidationResult = vpTokenValidationResult,
             request = authnRequest,
         ).also {
@@ -253,51 +242,12 @@ class OpenId4VpVerifier @JvmOverloads constructor(
     }
 
     private fun AuthnResponseResult.isFullyValid(): Boolean =
-        idTokenValidationResult?.isFailure != true &&
-                vpTokenValidationResult?.isFailure != true &&
+        vpTokenValidationResult?.isFailure != true &&
                 (vpTokenValidationResult?.getOrNull()?.isFullyValid() ?: false)
 
     private fun VpTokenValidationResult.isFullyValid(): Boolean =
         presentationResults.all { it.isSuccess } &&
                 (this !is VpTokenValidationResultDCQL || submissionRequirementsValidationResult.isSuccess)
-
-    @Throws(IllegalArgumentException::class, CancellationException::class)
-    private suspend fun extractValidatedIdToken(
-        input: ResponseParametersFrom,
-        expectedNonce: String,
-    ): KmmResult<IdToken> = catching {
-        val idTokenJws = input.parameters.idToken
-            ?: throw IllegalArgumentException("idToken")
-        val jwsSigned = catching { JwsCompactTyped<IdToken>(idTokenJws) }
-            .getOrElse { throw IllegalArgumentException("idToken", it) }
-        verifyJwsObject(jwsSigned.jws).getOrElse {
-            throw IllegalArgumentException("idToken.", it)
-                .also { Napier.w { "JWS of idToken not verified: $idTokenJws" } }
-        }
-        val idToken = jwsSigned.payload
-        require(idToken.issuer == idToken.subject) {
-            "Wrong issuer: ${idToken.issuer}, expected: ${idToken.subject}"
-        }
-        require(idToken.audience == clientIdScheme.clientId) {
-            "audience not valid: ${idToken.audience}"
-        }
-        require(idToken.expiration >= (clock.now() - timeLeeway)) {
-            "expirationDate before now: ${idToken.expiration}"
-        }
-        require(idToken.issuedAt <= (clock.now() + timeLeeway)) {
-            "issuedAt after now: ${idToken.issuedAt}"
-        }
-        require(idToken.nonce == expectedNonce && nonceAwareVerifier.verifyNonce(expectedNonce)) {
-            "nonce not valid: ${idToken.nonce}, expected $expectedNonce"
-        }
-        require(idToken.subjectJwk != null) {
-            "sub_jwk is null"
-        }
-        require(idToken.subject == idToken.subjectJwk!!.jwkThumbprint) {
-            "subject does not equal thumbprint of sub_jwk: ${idToken.subject}"
-        }
-        idToken
-    }
 
     /**
      * Validates the `vp_token` of the response with the shared [VpTokenValidator],

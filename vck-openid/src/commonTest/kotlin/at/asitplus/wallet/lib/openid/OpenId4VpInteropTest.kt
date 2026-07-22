@@ -50,8 +50,9 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonPrimitive
 
 /**
- * Tests our OpenID4VP/SIOP implementation against POTENTIAL Piloting Definition Scope
+ * Tests our OpenID4VP implementation against POTENTIAL Piloting Definition Scope
  */
+@Suppress("DEPRECATION")
 val OpenId4VpInteropTest by matrixSuite {
     fixture {
         runBlocking {

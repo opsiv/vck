@@ -27,7 +27,7 @@ internal class AuthorizationRequestValidator(
         request: RequestParametersFrom<AuthenticationRequestParameters>,
     ) {
         request.parameters.responseType?.let {
-            if (!it.contains(OpenIdConstants.ID_TOKEN) && !it.contains(OpenIdConstants.VP_TOKEN)) {
+            if (!it.contains(OpenIdConstants.VP_TOKEN)) {
                 throw InvalidRequest("invalid response_type: $it")
             }
         } ?: throw InvalidRequest("response_type is null")

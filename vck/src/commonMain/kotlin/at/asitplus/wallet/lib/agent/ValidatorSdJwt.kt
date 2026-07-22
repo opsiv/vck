@@ -7,6 +7,8 @@ import at.asitplus.iso.sha256
 import at.asitplus.openid.TransactionDataBase64Url
 import at.asitplus.openid.digest
 import at.asitplus.signum.indispensable.CryptoPublicKey
+import at.asitplus.signum.indispensable.Digest
+import at.asitplus.signum.supreme.hash.digest
 import at.asitplus.wallet.lib.agent.Verifier.VerifyCredentialResult
 import at.asitplus.wallet.lib.agent.Verifier.VerifyPresentationResult
 import at.asitplus.wallet.lib.agent.validation.sdJwt.SdJwtInputValidator
@@ -81,7 +83,8 @@ class ValidatorSdJwt @JvmOverloads constructor(
                 "Audience not correct: ${keyBinding.audience}"
             }
 
-            if (!keyBinding.sdHash.contentEquals(input.hashInput.encodeToByteArray().sha256())) {
+            val digest = vcSdJwt.selectiveDisclosureAlgorithm?.toDigest() ?: Digest.SHA256
+            if (!keyBinding.sdHash.contentEquals(digest.digest(input.hashInput.encodeToByteArray()))) {
                 throw Throwable("KB-JWT does not contain correct sd_hash")
             }
 

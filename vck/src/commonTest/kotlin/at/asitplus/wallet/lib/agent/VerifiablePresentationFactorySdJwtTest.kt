@@ -3,6 +3,7 @@ package at.asitplus.wallet.lib.agent
 import at.asitplus.jsonpath.core.NormalizedJsonPath
 import at.asitplus.openid.OidcUserInfo
 import at.asitplus.openid.OidcUserInfoExtended
+import at.asitplus.signum.indispensable.Digest
 import at.asitplus.testballoon.matrix.fixture
 import at.asitplus.testballoon.matrix.matrixSuite
 import at.asitplus.wallet.lib.data.ConstantIndex
@@ -56,6 +57,7 @@ val VerifiablePresentationFactorySdJwtTest by matrixSuite {
                         scheme = ConstantIndex.AtomicAttribute2023,
                         subjectPublicKey = holderKeyMaterial.publicKey,
                         userInfo = OidcUserInfoExtended.fromOidcUserInfo(OidcUserInfo("subject")).getOrThrow(),
+                        sdAlgorithm = Digest.SHA384,
                     )
                 ).getOrThrow().toStoreCredentialInput()
             ).getOrThrow()
@@ -71,14 +73,17 @@ val VerifiablePresentationFactorySdJwtTest by matrixSuite {
             val disclosedAttributes = listOf(
                 NormalizedJsonPath() + "name"
             )
+            val request = PresentationRequestParameters(
+                nonce = uuid4().toString(),
+                audience = "https://verifier.example.org",
+            )
             it.verifiablePresentationFactory.createVerifiablePresentation(
-                request = PresentationRequestParameters(
-                    nonce = uuid4().toString(),
-                    audience = "https://verifier.example.org",
-                ),
+                request = request,
                 credential = it.sdJwtCredential,
                 disclosedAttributes = disclosedAttributes,
             ).getOrThrow().shouldBeInstanceOf<CreatePresentationResult.SdJwt>().apply {
+                sdJwt.keyBindingJws.shouldNotBeNull().payload.sdHash.size shouldBe 48
+                ValidatorSdJwt().verifyVpSdJwt(sdJwt, request.nonce, request.audience, null).getOrThrow()
                 SdJwtDecoded(sdJwt).apply {
                     validDisclosures.shouldHaveSize(1)
                     reconstructedJsonObject.shouldNotBeNull().keys shouldBe setOf("name") + setOfDefaultSdJwtClaims

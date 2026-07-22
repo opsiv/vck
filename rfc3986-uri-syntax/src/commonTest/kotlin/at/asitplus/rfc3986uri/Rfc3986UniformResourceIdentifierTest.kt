@@ -172,6 +172,12 @@ val Rfc3986UniformResourceIdentifierTest by matrixSuite {
             uri.authority?.port shouldBe null
             uri.authority?.host shouldBe Rfc3986AuthorityHost("example.com")
         }
+        test("port syntax preserves leading zeros and arbitrary length") {
+            val port = "000184467440737095516160"
+            val authority = Rfc3986UniformResourceIdentifier("http://example.com:$port").authority
+            authority?.port shouldBe port
+            authority.toString() shouldBe "example.com:$port"
+        }
     }
 
     testSuite("root-only absolute path") {

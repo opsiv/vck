@@ -6,9 +6,25 @@ import kotlinx.serialization.Serializable
 data class Rfc3986Authority(
     val userInfo: Rfc3986UriAuthorityUserInformation?,
     val host: Rfc3986AuthorityHost,
-    val port: ULong?,
+    val port: String?,
 ) {
+    init {
+        require(port == null || port.isNotEmpty() && port.all { it in '0'..'9' }) {
+            "port must contain decimal digits"
+        }
+    }
+
     companion object {
+        @Deprecated(
+            "Use a String port",
+            ReplaceWith("Rfc3986Authority(userInfo, host, port.toString())"),
+        )
+        operator fun invoke(
+            userInfo: Rfc3986UriAuthorityUserInformation?,
+            host: Rfc3986AuthorityHost,
+            port: ULong,
+        ) = Rfc3986Authority(userInfo, host, port.toString())
+
         operator fun invoke(string: String): Rfc3986Authority {
             val userInfoSeparatorIndex = string.indexOf('@').takeIf {
                 it != -1
@@ -35,7 +51,7 @@ data class Rfc3986Authority(
                 ),
                 port = portSeparatorIndex?.let {
                     val portString = string.substring(portSeparatorIndex + 1)
-                    if (portString.isEmpty()) null else portString.toULong()
+                    portString.ifEmpty { null }
                 }
             )
         }

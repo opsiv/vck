@@ -391,7 +391,7 @@ private fun simpleSigner(
     ).getOrThrow()
 }
 
-private fun SubjectCredentialStore.StoreEntry.Iso.mdocStatusListIndex(): ULong =
+private fun SubjectCredentialStore.StoreEntry.Iso.mdocStatusListIndex(): Long =
     issuerSigned.issuerAuth.payload.shouldNotBeNull().status.shouldNotBeNull().shouldBeInstanceOf<StatusListInfo>().index
 
 private fun Issuer.IssuedCredential.Iso.issuedIdentifierListInfo(): IdentifierListInfo =

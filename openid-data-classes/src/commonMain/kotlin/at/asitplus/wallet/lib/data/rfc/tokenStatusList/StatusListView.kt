@@ -19,15 +19,23 @@ data class StatusListView(
     fun isEmpty() = uncompressed.isEmpty()
     fun isNotEmpty() = !isEmpty()
 
-    operator fun get(index: UInt) = get(index.toULong())
-    operator fun get(index: ULong) = getOrNull(index)
-        ?: throw IndexOutOfBoundsException("Index $index is out of bounds, size ${uncompressed.size.toULong() * Byte.SIZE_BITS.toULong() / statusBitSize.value}")
+    operator fun get(index: Long) = getOrNull(index)
+        ?: throw IndexOutOfBoundsException("Index $index is out of bounds, size ${uncompressed.size.toLong() * Byte.SIZE_BITS / statusBitSize.value.toLong()}")
 
-    fun getOrNull(index: ULong): TokenStatus? {
-        val tokenStatusesPerByte = Byte.SIZE_BITS.toULong() / statusBitSize.value
+    @Deprecated("Use a Long index", ReplaceWith("get(index.toLong())"))
+    operator fun get(index: UInt) = get(index.toLong())
+
+    @Deprecated("Use a Long index", ReplaceWith("get(index.toLong())"))
+    operator fun get(index: ULong) = get(index.toLong().also {
+        require(index <= Long.MAX_VALUE.toULong()) { "index must be at most Long.MAX_VALUE" }
+    })
+
+    fun getOrNull(index: Long): TokenStatus? {
+        require(index >= 0) { "index must be non-negative" }
+        val tokenStatusesPerByte = Byte.SIZE_BITS.toLong() / statusBitSize.value.toLong()
 
         val byteIndex = (index / tokenStatusesPerByte).also {
-            if (it > Int.MAX_VALUE.toULong()) {
+            if (it > Int.MAX_VALUE) {
                 throw IllegalArgumentException("Argument `index` is too big, it must be at most `Int.MAX_VALUE * bits`.")
             }
         }.toInt()
@@ -40,13 +48,18 @@ data class StatusListView(
             TokenStatusBitSize.EIGHT -> 0xffu
         }
 
-        val lowestBitOffset = ((index % tokenStatusesPerByte) * statusBitSize.value).toInt()
+        val lowestBitOffset = ((index % tokenStatusesPerByte) * statusBitSize.value.toLong()).toInt()
         val mask = statusMask.shl(lowestBitOffset).toByte()
 
         val tokenStatusByte = byte.and(mask).toUByte().toInt().shr(lowestBitOffset).toUByte()
 
         return TokenStatus(tokenStatusByte)
     }
+
+    @Deprecated("Use a Long index", ReplaceWith("getOrNull(index.toLong())"))
+    fun getOrNull(index: ULong) = getOrNull(index.toLong().also {
+        require(index <= Long.MAX_VALUE.toULong()) { "index must be at most Long.MAX_VALUE" }
+    })
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

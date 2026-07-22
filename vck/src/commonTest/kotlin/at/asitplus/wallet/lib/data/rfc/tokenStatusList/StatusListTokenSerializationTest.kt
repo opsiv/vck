@@ -46,7 +46,7 @@ val StatusListTokenSerializationTest by matrixSuite {
                             it.revocationList.shouldBeInstanceOf<StatusList>().statusBitSize shouldBe TokenStatusBitSize.ONE
                         },
                         "statuslist status" to {
-                            it.revocationList.shouldBeInstanceOf<StatusList>().toView()[0u] shouldBe TokenStatus(1u)
+                            it.revocationList.shouldBeInstanceOf<StatusList>().toView()[0] shouldBe TokenStatus(1u)
                         },
                     ),
                 ),

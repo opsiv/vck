@@ -17,7 +17,7 @@ val StatusListTokenTypeValidationTest by matrixSuite {
 
             statusListToken.validate(
                 verifyJwsObject = { KmmResult.success(Verifier.Success) },
-                revocationListInfo = StatusListInfo(index = 0u, uri = issued.payload.subject),
+                revocationListInfo = StatusListInfo(index = 0, uri = issued.payload.subject),
                 isInstantInThePast = { false },
             ).isSuccess shouldBe true
         }
@@ -37,7 +37,7 @@ val StatusListTokenTypeValidationTest by matrixSuite {
 
             statusListToken.validate(
                 verifyJwsObject = { KmmResult.success(Verifier.Success) },
-                revocationListInfo = StatusListInfo(index = 0u, uri = issued.payload.subject),
+                revocationListInfo = StatusListInfo(index = 0, uri = issued.payload.subject),
                 isInstantInThePast = { false },
             ).exceptionOrNull().toString().shouldContain("Invalid type header")
         }

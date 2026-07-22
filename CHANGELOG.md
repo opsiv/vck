@@ -40,6 +40,7 @@ Release 7.0.0 (unreleased):
     - Status claims for identifier lists from ISO 18013-5 contain the certificate of the status list issuer
 - JVM interoperability:
     - Add `@JvmOverloads` to public API constructors with default parameters across the published modules.
+    - Use non-negative `Long` values for status-list indices instead of JVM-inaccessible Kotlin unsigned types; deprecated unsigned overloads remain for migration.
 - Refactorings:
     - `OpenId4VpHolder.getMatchingCredentials()` returns `KmmResult` instead of `Result`
     - In `SdJwtInputValidationResult` transport error during integrity validation in `integrityValidationResult` instead of `isIntegrityGood`

@@ -86,7 +86,7 @@ val AgentRevocationTest by matrixSuite {
             ).getOrElse {
                 fail("no issued credentials")
             }
-            it.issuerCredentialStore.revokeCredentialsWithIndexes(listOf(0U))
+            it.issuerCredentialStore.revokeCredentialsWithIndexes(listOf(0))
 
             val statusListAggregation = it.statusListIssuer.provideStatusListAggregation()
             statusListAggregation.statusLists.size should { it >= 1 }
@@ -102,7 +102,7 @@ val AgentRevocationTest by matrixSuite {
             ).getOrElse {
                 fail("no issued credentials")
             }
-            it.issuerCredentialStore.revokeCredentialsWithIndexes(listOf(0U))
+            it.issuerCredentialStore.revokeCredentialsWithIndexes(listOf(0))
 
             val timestamp = Clock.System.now()
             val issuedToken = it.statusListIssuer.issueStatusListJwt(timestamp)
@@ -126,7 +126,7 @@ val AgentRevocationTest by matrixSuite {
             ).getOrElse {
                 fail("no issued credentials")
             }
-            it.issuerCredentialStore.revokeCredentialsWithIndexes(listOf(0U))
+            it.issuerCredentialStore.revokeCredentialsWithIndexes(listOf(0))
 
             val timestamp = Clock.System.now()
             val issuedToken = it.statusListIssuer.issueStatusListJwt(timestamp)
@@ -176,7 +176,7 @@ val AgentRevocationTest by matrixSuite {
         "encoding to a known value works" {
             val issuerCredentialStore = InMemoryIssuerCredentialStore()
             val statusListIssuer = StatusListAgent(issuerCredentialStore = issuerCredentialStore)
-            val expectedRevokedIndexes: List<ULong> = listOf(1U, 2U, 4U, 6U, 7U, 9U, 10U, 12U, 13U, 14U)
+            val expectedRevokedIndexes = listOf(1L, 2L, 4L, 6L, 7L, 9L, 10L, 12L, 13L, 14L)
             issuerCredentialStore.revokeCredentialsWithIndexes(expectedRevokedIndexes)
 
             val revocationList = statusListIssuer.buildRevocationList(timePeriod).shouldNotBeNull()
@@ -185,7 +185,7 @@ val AgentRevocationTest by matrixSuite {
         }
 
         "decoding a known value works" {
-            val expectedRevokedIndexes: List<ULong> = listOf(1U, 2U, 4U, 6U, 7U, 9U, 10U, 12U, 13U, 14U)
+            val expectedRevokedIndexes = listOf(1L, 2L, 4L, 6L, 7L, 9L, 10L, 12L, 13L, 14L)
 
             val revocationList =
                 Json.decodeFromString<StatusList>("""{"lst": "eJy7VgYAAiQBTQ==", "bits": 1}""")
@@ -255,7 +255,7 @@ val AgentRevocationTest by matrixSuite {
 private fun Issuer.IssuedCredential.Iso.mdocIdentifierListInfo(): IdentifierListInfo =
     issuerSigned.issuerAuth.payload.shouldNotBeNull().status.shouldNotBeNull().shouldBeInstanceOf<IdentifierListInfo>()
 
-private fun verifyStatusList(statusList: StatusList, expectedRevokedIndexes: List<ULong>) {
+private fun verifyStatusList(statusList: StatusList, expectedRevokedIndexes: List<Long>) {
     val expectedRevocationStatuses = MutableList(expectedRevokedIndexes.max().toInt() + 1) {
         TokenStatus.Valid
     }
@@ -263,11 +263,11 @@ private fun verifyStatusList(statusList: StatusList, expectedRevokedIndexes: Lis
         expectedRevocationStatuses[it.toInt()] = TokenStatus.Invalid
     }
     expectedRevocationStatuses.forEachIndexed { index, it ->
-        statusList.toView()[index.toULong()] shouldBe it
+        statusList.toView()[index.toLong()] shouldBe it
     }
 }
 
-private suspend fun InMemoryIssuerCredentialStore.revokeCredentialsWithIndexes(revokedIndexes: List<ULong>) {
+private suspend fun InMemoryIssuerCredentialStore.revokeCredentialsWithIndexes(revokedIndexes: List<Long>) {
     val cred = AtomicAttribute2023("sub", "name", "value", "text").toJsonElement()
     val issuanceDate = Clock.System.now()
     val expirationDate = issuanceDate + 60.seconds
@@ -289,8 +289,8 @@ private suspend fun InMemoryIssuerCredentialStore.revokeCredentialsWithIndexes(r
     }
 }
 
-private suspend fun InMemoryIssuerCredentialStore.revokeRandomCredentials(): List<ULong> {
-    val expectedRevocationList = mutableListOf<ULong>()
+private suspend fun InMemoryIssuerCredentialStore.revokeRandomCredentials(): List<Long> {
+    val expectedRevocationList = mutableListOf<Long>()
     val cred = AtomicAttribute2023("sub", "name", "value", "text").toJsonElement()
     val issuanceDate = Clock.System.now()
     val expirationDate = issuanceDate + 60.seconds

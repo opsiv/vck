@@ -22,9 +22,26 @@ class InMemoryIssuerCredentialStore(
 
     data class Credential(
         val vcId: String,
-        val statusListIndex: ULong,
+        val statusListIndex: Long,
         var status: TokenStatus,
-    )
+    ) {
+        init {
+            require(statusListIndex >= 0) { "statusListIndex must be non-negative" }
+        }
+
+        companion object {
+            @Deprecated("Use the Long constructor", ReplaceWith("Credential(vcId, statusListIndex.toLong(), status)"))
+            operator fun invoke(vcId: String, statusListIndex: ULong, status: TokenStatus) = Credential(
+                vcId = vcId,
+                statusListIndex = statusListIndex.toLong().also {
+                    require(statusListIndex <= Long.MAX_VALUE.toULong()) {
+                        "statusListIndex must be at most Long.MAX_VALUE"
+                    }
+                },
+                status = status,
+            )
+        }
+    }
 
     /** Maps timePeriod to credentials for referenced tokens which may be revoked later on */
     private val referencedTokens = mutableMapOf<Int, MutableList<Credential>>()
@@ -41,7 +58,7 @@ class InMemoryIssuerCredentialStore(
     ): KmmResult<ReferencedTokenStore.StoredCredentialReference> = catching {
         indexMutex.withLock {
             val list = referencedTokens.getOrPut(timePeriod) { mutableListOf() }
-            val newIndex: ULong = (list.maxOfOrNull { it.statusListIndex } ?: 0U) + 1U
+            val newIndex = (list.maxOfOrNull { it.statusListIndex } ?: 0L) + 1L
             val vcId = uuid4().toString()
             list += Credential(
                 vcId = vcId,
@@ -97,8 +114,8 @@ class InMemoryIssuerCredentialStore(
         val highestIndex = timePeriodStatusMap.keys.maxOrNull()
             ?: return StatusListView(ByteArray(0), tokenStatusBitSize)
 
-        val tokenStatusList = (0U..highestIndex.toUInt()).map {
-            timePeriodStatusMap[it.toULong()] ?: TokenStatus.Valid
+        val tokenStatusList = (0L..highestIndex).map {
+            timePeriodStatusMap[it] ?: TokenStatus.Valid
         }
 
         return StatusListView.fromTokenStatuses(
@@ -123,9 +140,10 @@ class InMemoryIssuerCredentialStore(
      */
     override fun setStatus(
         timePeriod: Int,
-        index: ULong,
+        index: Long,
         status: TokenStatus,
     ): Boolean {
+        require(index >= 0) { "index must be non-negative" }
         val entry = referencedTokens.getOrPut(timePeriod) {
             mutableListOf()
         }.find {

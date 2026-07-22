@@ -37,7 +37,7 @@ val StatusListSerializationTest by matrixSuite {
             val statusList = Json.decodeFromString<StatusList>(jsonString)
 
             expectedStatusList.forEachIndexed { index, status ->
-                statusList.toView()[index.toULong()] shouldBe status
+                statusList.toView()[index.toLong()] shouldBe status
             }
 
             val encoded = Json.encodeToString(statusList).apply {
@@ -57,7 +57,7 @@ val StatusListSerializationTest by matrixSuite {
         val statusList = Json.decodeFromString<StatusList>(jsonString)
 
         expectedStatusList.forEachIndexed { index, status ->
-            statusList.toView()[index.toULong()] shouldBe status
+            statusList.toView()[index.toLong()] shouldBe status
         }
 
         val encoded = Json.encodeToString(statusList)
@@ -85,7 +85,7 @@ val StatusListSerializationTest by matrixSuite {
             val (cborString, expectedStatusList) = expected
             val statusList = coseCompliantSerializer.decodeFromHexString<StatusList>(cborString)
             expectedStatusList.forEachIndexed { index, status ->
-                statusList.toView()[index.toULong()] shouldBe status
+                statusList.toView()[index.toLong()] shouldBe status
             }
 
             val encoded = coseCompliantSerializer.encodeToHexString(statusList).apply {

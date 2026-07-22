@@ -163,8 +163,10 @@ class StatusListAgent @JvmOverloads constructor(
      * Sets the status of one specific credential to [TokenStatus.Invalid].
      * Returns true if this credential has been revoked.
      */
-    override fun revokeCredentialByIndex(timePeriod: Int, statusListIndex: ULong): Boolean =
-        issuerCredentialStore.setStatus(timePeriod, statusListIndex, TokenStatus.Invalid)
+    override fun revokeCredentialByIndex(timePeriod: Int, statusListIndex: Long): Boolean {
+        require(statusListIndex >= 0) { "statusListIndex must be non-negative" }
+        return issuerCredentialStore.setStatus(timePeriod, statusListIndex, TokenStatus.Invalid)
+    }
 
     /**
      * Sets the status of one specific credential to [TokenStatus.Invalid].

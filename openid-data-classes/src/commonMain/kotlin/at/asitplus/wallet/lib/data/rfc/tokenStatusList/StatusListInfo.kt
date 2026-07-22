@@ -25,7 +25,7 @@ data class StatusListInfo(
      * Token. The value of idx MUST be a non-negative number, containing a value of zero or greater.
      */
     @SerialName(SerialNames.INDEX)
-    val index: ULong,
+    val index: Long,
     /**
      * JOSE:
      * uri: REQUIRED. The uri (URI) claim MUST specify a String value that identifies the Status
@@ -42,6 +42,10 @@ data class StatusListInfo(
 
     override val certificate: ByteArray? = null,
 ) : RevocationListInfo() {
+    init {
+        require(index >= 0) { "index must be non-negative" }
+    }
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other == null || this::class != other::class) return false
@@ -67,7 +71,19 @@ data class StatusListInfo(
         const val URI = "uri"
         const val STATUS_LIST_INFO = "status_list"
     }
+
+    companion object {
+        @Deprecated("Use the Long constructor", ReplaceWith("StatusListInfo(index.toLong(), uri, certificate)"))
+        operator fun invoke(
+            index: ULong,
+            uri: UniformResourceIdentifier,
+            certificate: ByteArray? = null,
+        ) = StatusListInfo(
+            index = index.toLong().also {
+                require(index <= Long.MAX_VALUE.toULong()) { "index must be at most Long.MAX_VALUE" }
+            },
+            uri = uri,
+            certificate = certificate,
+        )
+    }
 }
-
-
-

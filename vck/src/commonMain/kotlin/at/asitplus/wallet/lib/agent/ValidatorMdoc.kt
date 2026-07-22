@@ -8,14 +8,15 @@ import at.asitplus.iso.IssuerSigned
 import at.asitplus.iso.IssuerSignedItem
 import at.asitplus.iso.MobileSecurityObject
 import at.asitplus.iso.ValueDigestList
-import at.asitplus.iso.sha256
 import at.asitplus.iso.wrapInCborTag
+import at.asitplus.signum.indispensable.Digest
 import at.asitplus.signum.indispensable.cosef.CoseKey
 import at.asitplus.signum.indispensable.cosef.io.Base16Strict
 import at.asitplus.signum.indispensable.cosef.io.ByteStringWrapper
 import at.asitplus.signum.indispensable.cosef.io.coseCompliantSerializer
 import at.asitplus.signum.indispensable.cosef.toCoseKey
 import at.asitplus.signum.indispensable.pki.X509Certificate
+import at.asitplus.signum.supreme.hash.digest
 import at.asitplus.wallet.lib.agent.Verifier.VerifyCredentialResult.SuccessIso
 import at.asitplus.wallet.lib.agent.Verifier.VerifyPresentationResult
 import at.asitplus.wallet.lib.agent.validation.mdoc.MdocInputValidator
@@ -96,7 +97,7 @@ class ValidatorMdoc @JvmOverloads constructor(
         val invalidItems = mutableListOf<IssuerSignedItem>()
         issuerSigned.namespaces?.forEach { (namespace, issuerSignedItems) ->
             issuerSignedItems.entries.forEach {
-                if (it.verify(mso.valueDigests[namespace])) {
+                if (it.verify(mso.valueDigests[namespace], mso.digest)) {
                     validItems += it.value
                 } else {
                     invalidItems += it.value
@@ -118,7 +119,10 @@ class ValidatorMdoc @JvmOverloads constructor(
      *
      * See ISO/IEC 18013-5:2021, 9.3.1 Inspection procedure for issuer data authentication
      */
-    private fun ByteStringWrapper<IssuerSignedItem>.verify(mdlItems: ValueDigestList?): Boolean {
+    private fun ByteStringWrapper<IssuerSignedItem>.verify(
+        mdlItems: ValueDigestList?,
+        digest: Digest = Digest.SHA256
+    ): Boolean {
         val issuerHash = mdlItems?.entries?.firstOrNull { it.key == value.digestId }
             ?: return false
         // TODO Only true in AgentIsoMdocTest when we are not deserializing the ByteStringWrappe in the issuerSignedItems
@@ -127,7 +131,7 @@ class ValidatorMdoc @JvmOverloads constructor(
         else coseCompliantSerializer
             .encodeToByteArray(ByteArraySerializer(), serialized)
             .wrapInCborTag(24)
-        val verifierHash = inputToVerifierHash.sha256()
+        val verifierHash = digest.digest(inputToVerifierHash)
         return verifierHash.contentEquals(issuerHash.value)
     }
 

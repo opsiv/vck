@@ -8,6 +8,7 @@ import at.asitplus.iso.ItemsRequest
 import at.asitplus.iso.ItemsRequestList
 import at.asitplus.iso.SingleItemsRequest
 import at.asitplus.signum.indispensable.cosef.io.ByteStringWrapper
+import io.github.z4kn4fein.semver.Version
 import kotlinx.serialization.Serializable
 
 /**
@@ -29,7 +30,7 @@ data class IosDcApiMdocPreRequestSummary(
 
     /** Converts the summary into an ISO device request for pre-request credential matching. */
     fun toDeviceRequest(): DeviceRequest = DeviceRequest(
-        version = "1.0",
+        parsedVersion = Version(1, 0),
         docRequests = documentRequests.map { request ->
             DocRequest(
                 itemsRequest = ByteStringWrapper(

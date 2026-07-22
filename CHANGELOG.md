@@ -13,6 +13,8 @@ Release 8.0.0 (unreleased):
     - Deprecate format specific methods in `Holder`, all to be replaced with `matchPresentationRequestAgainstCredentialStore()`: `matchInputDescriptorsAgainstCredentialStoreV2()`, `matchDeviceRetrievalAgainstCredentialStore()`, `evaluateInputDescriptorAgainstCredential()`, `matchDCQLQueryAgainstCredentialStoreV2()`
 - Deprecations:
     - Support all classes used for Presentation Exchange requests and so on, e.g., `CredentialPresentationRequest.PresentationExchangeRequest` or `PresentationExchangeCredentialDisclosure` or `CredentialPresentation.PresentationExchangePresentation`
+- Refactorings:
+    - In ISO data classes like `DeviceResponse`, `DeviceRequest`, `MobileSecurityObject` replace the String `version` with a typed `parsedVersion` from [kotlin-semver](https://github.com/z4kn4fein/kotlin-semver)
 
 Release 7.0.0 (unreleased):
 - Credential definitions:

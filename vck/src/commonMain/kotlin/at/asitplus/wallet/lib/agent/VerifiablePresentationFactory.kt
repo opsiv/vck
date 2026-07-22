@@ -28,9 +28,7 @@ import at.asitplus.jsonpath.core.NormalizedJsonPath
 import at.asitplus.jsonpath.core.NormalizedJsonPathSegment
 import at.asitplus.openid.dcql.DCQLClaimsQueryResult
 import at.asitplus.openid.dcql.DCQLCredentialQueryMatchingResult
-import at.asitplus.openid.dcql.DCQLCredentialQueryMatchingResult.AllClaimsMatchingResult
-import at.asitplus.openid.dcql.DCQLCredentialQueryMatchingResult.AllMandatoryClaimsMatchingResult
-import at.asitplus.openid.dcql.DCQLCredentialQueryMatchingResult.ClaimsQueryResults
+import at.asitplus.openid.dcql.DCQLCredentialQueryMatchingResult.*
 import at.asitplus.openid.truncateToSeconds
 import at.asitplus.signum.indispensable.Digest
 import at.asitplus.signum.indispensable.cosef.io.ByteStringWrapper
@@ -51,6 +49,7 @@ import at.asitplus.wallet.lib.jws.SdJwtSigned
 import at.asitplus.wallet.lib.jws.SignJwt
 import at.asitplus.wallet.lib.jws.SignJwtFun
 import io.github.aakira.napier.Napier
+import io.github.z4kn4fein.semver.Version
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -180,7 +179,7 @@ class VerifiablePresentationFactory(
         credentialAndRequestedClaims: Collection<Pair<StoreEntry.Iso, Collection<NormalizedJsonPath>>>,
     ) = CreatePresentationResult.DeviceResponse(
         deviceResponse = DeviceResponse(
-            version = "1.0",
+            parsedVersion = Version(1, 0),
             documents = credentialAndRequestedClaims.map { (credential, requestedClaims) ->
                 credential.discloseRequestedClaims(requestedClaims, request)
             }.toTypedArray(),

@@ -38,6 +38,7 @@ import at.asitplus.wallet.lib.agent.RandomSource
 import at.asitplus.wallet.lib.data.ConstantIndex
 import at.asitplus.wallet.lib.data.ConstantIndex.CredentialRepresentation.ISO_MDOC
 import at.asitplus.wallet.lib.data.rfc3986.toUri
+import io.github.z4kn4fein.semver.Version
 import io.kotest.assertions.withClue
 import io.kotest.matchers.collections.shouldHaveAtLeastSize
 import io.kotest.matchers.maps.shouldNotBeEmpty
@@ -148,7 +149,7 @@ val Tag24SerializationTest by matrixSuite {
 
     "IssuerAuth" {
         val mso = MobileSecurityObject(
-            version = "1.0",
+            parsedVersion = Version(1, 0),
             digestAlgorithm = "SHA-256",
             valueDigests = mapOf("foo" to ValueDigestList(listOf(ValueDigest(0U, byteArrayOf())))),
             deviceKeyInfo = deviceKeyInfo(),

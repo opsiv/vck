@@ -23,7 +23,6 @@ import at.asitplus.iso.DeviceSigned
 import at.asitplus.iso.Document
 import at.asitplus.iso.IssuerSigned
 import at.asitplus.iso.IssuerSignedItem
-import at.asitplus.iso.sha256
 import at.asitplus.jsonpath.core.NormalizedJsonPath
 import at.asitplus.jsonpath.core.NormalizedJsonPathSegment
 import at.asitplus.openid.dcql.DCQLClaimsQueryResult
@@ -34,6 +33,7 @@ import at.asitplus.signum.indispensable.Digest
 import at.asitplus.signum.indispensable.cosef.io.ByteStringWrapper
 import at.asitplus.signum.indispensable.josef.JwsCompact
 import at.asitplus.signum.indispensable.josef.JwsCompactTyped
+import at.asitplus.signum.supreme.hash.digest
 import at.asitplus.wallet.lib.agent.SubjectCredentialStore.StoreEntry
 import at.asitplus.wallet.lib.data.KeyBindingJws
 import at.asitplus.wallet.lib.data.SdJwtConstants.NAME_SD
@@ -251,7 +251,9 @@ class VerifiablePresentationFactory(
         validSdJwtCredential: StoreEntry.SdJwt,
         disclosures: Set<String>,
     ): CreatePresentationResult.SdJwt {
-        val keyBinding = createKeyBindingJws(request, SdJwtSigned.sdHashInput(validSdJwtCredential, disclosures))
+        val digest = validSdJwtCredential.sdJwt.selectiveDisclosureAlgorithm?.toDigest() ?: Digest.SHA256
+        val digestInput = SdJwtSigned.sdHashInput(validSdJwtCredential, disclosures)
+        val keyBinding = createKeyBindingJws(request, digestInput, digest)
         val issuerSignedJwsSerialized = validSdJwtCredential.vcSerialized.substringBefore("~")
         val issuerSignedJws =
             catching { JwsCompact(issuerSignedJwsSerialized) }
@@ -380,13 +382,14 @@ class VerifiablePresentationFactory(
     private suspend fun createKeyBindingJws(
         request: PresentationRequestParameters,
         hashInput: String,
+        digest: Digest,
     ): JwsCompactTyped<KeyBindingJws> = signKeyBinding(
         JwsContentTypeConstants.KB_JWT,
         KeyBindingJws(
             issuedAt = Clock.System.now().truncateToSeconds(),
             audience = request.audience,
             challenge = request.nonce,
-            sdHash = hashInput.encodeToByteArray().sha256(),
+            sdHash = digest.digest(hashInput.encodeToByteArray()),
             transactionDataHashes = request.transactionData?.hash(request.transactionDataHashesAlgorithm),
             transactionDataHashesAlgorithmString = request.transactionDataHashesAlgorithm?.toIanaName(),
         ),

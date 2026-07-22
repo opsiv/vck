@@ -33,6 +33,7 @@ import at.asitplus.wallet.lib.cbor.VerifyCoseSignatureWithKey
 import at.asitplus.wallet.lib.data.ConstantIndex
 import at.asitplus.wallet.lib.data.ConstantIndex.AtomicAttribute2023.CLAIM_FAMILY_NAME
 import at.asitplus.wallet.lib.data.ConstantIndex.AtomicAttribute2023.CLAIM_GIVEN_NAME
+import io.github.z4kn4fein.semver.Version
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
@@ -92,7 +93,7 @@ class Wallet {
             .shouldNotBeNull()
         val requestedKeys = isoNamespace.entries.filter { it.intentToRetain }.map { it.dataElementIdentifier }
         return DeviceResponse(
-            version = "1.0",
+            parsedVersion = Version(1, 0),
             documents = arrayOf(
                 Document(
                     docType = ConstantIndex.AtomicAttribute2023.isoDocType,
@@ -130,7 +131,7 @@ class Issuer {
         )
 
         val mso = MobileSecurityObject(
-            version = "1.0",
+            parsedVersion = Version(1, 0),
             digestAlgorithm = "SHA-256",
             valueDigests = mapOf(
                 ConstantIndex.AtomicAttribute2023.isoNamespace to ValueDigestList(entries = issuerSigned.map {
@@ -147,7 +148,7 @@ class Issuer {
         )
 
         return DeviceResponse(
-            version = "1.0",
+            parsedVersion = Version(1, 0),
             documents = arrayOf(
                 Document(
                     docType = ConstantIndex.AtomicAttribute2023.isoDocType,

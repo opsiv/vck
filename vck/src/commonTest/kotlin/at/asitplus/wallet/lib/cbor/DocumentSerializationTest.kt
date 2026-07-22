@@ -28,6 +28,7 @@ import at.asitplus.signum.indispensable.cosef.io.coseCompliantSerializer
 import at.asitplus.testballoon.matrix.fixture
 import at.asitplus.testballoon.matrix.matrixSuite
 import com.benasher44.uuid.uuid4
+import io.github.z4kn4fein.semver.Version
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.string.shouldNotContain
@@ -61,7 +62,7 @@ val DocumentSerializationTest by matrixSuite {
             )
             val protectedHeader = CoseHeader(algorithm = CoseAlgorithm.Signature.RS256)
             val mso = MobileSecurityObject(
-                version = "1.0",
+                parsedVersion = Version(1, 0),
                 digestAlgorithm = "SHA-256",
                 valueDigests = mapOf(
                     it.namespace to ValueDigestList(

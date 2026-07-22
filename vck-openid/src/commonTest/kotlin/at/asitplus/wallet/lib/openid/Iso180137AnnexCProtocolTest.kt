@@ -48,6 +48,7 @@ import at.asitplus.wallet.lib.data.ConstantIndex.CredentialRepresentation.ISO_MD
 import at.asitplus.wallet.lib.data.rfc3986.toUri
 import at.asitplus.wallet.lib.utils.DefaultMapStore
 import com.benasher44.uuid.uuid4
+import io.github.z4kn4fein.semver.Version
 import io.kotest.matchers.collections.shouldBeSingleton
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
@@ -236,7 +237,7 @@ val Iso180137AnnexCProtocolTest by matrixSuite {
                 transactionId,
                 isoMdocRequest.copy(
                     deviceRequest = DeviceRequest(
-                        version = "1.0",
+                        parsedVersion = Version(1, 0),
                         docRequests = arrayOf(
                             DocRequest(ByteStringWrapper(ItemsRequest("org.iso.18013.5.1.mDL", emptyMap())))
                         ),

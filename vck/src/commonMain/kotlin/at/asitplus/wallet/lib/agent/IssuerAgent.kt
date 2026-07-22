@@ -45,6 +45,7 @@ import at.asitplus.wallet.lib.jws.SignJwtExtFun
 import at.asitplus.wallet.lib.jws.SignJwtFun
 import com.benasher44.uuid.uuid4
 import io.github.aakira.napier.Napier
+import io.github.z4kn4fein.semver.Version
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.encodeToJsonElement
@@ -106,7 +107,7 @@ class IssuerAgent @JvmOverloads constructor(
             .getOrElse { throw IllegalStateException("Could not create subject COSE key", it) }
         val deviceKeyInfo = DeviceKeyInfo(coseKey)
         val mso = MobileSecurityObject(
-            version = "1.0",
+            parsedVersion = Version(1, 0),
             digestAlgorithm = "SHA-256",
             valueDigests = mapOf(
                 credential.scheme.isoNamespace to ValueDigestList(credential.issuerSignedItems.map {

@@ -44,6 +44,7 @@ import at.asitplus.wallet.lib.data.rfc.tokenStatusList.primitives.TokenStatusVal
 import at.asitplus.wallet.lib.data.rfc3986.toUri
 import at.asitplus.wallet.lib.randomCwtOrJwtResolver
 import com.benasher44.uuid.uuid4
+import io.github.z4kn4fein.semver.Version
 import io.kotest.engine.runBlocking
 import io.kotest.matchers.collections.shouldBeSingleton
 import io.kotest.matchers.collections.shouldHaveSize
@@ -185,7 +186,7 @@ val AgentIsoMdocMultipleDocumentsTest by matrixSuite {
                 ),
                 credentialPresentationRequest = CredentialPresentationRequest.IsoDeviceRetrieval(
                     DeviceRequest(
-                        version = "1.0",
+                        parsedVersion = Version(1, 0),
                         docRequests = arrayOf(
                             docRequest(AtomicAttribute2023, CLAIM_GIVEN_NAME),
                             docRequest(AtomicAttribute2025, CLAIM_FAMILY_NAME),

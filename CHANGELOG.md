@@ -1,6 +1,6 @@
 # Changelog
 
-Release 7.0.0 (unreleased):
+Release 7.0.0:
 - Credential definitions:
     - Move `CredentialScheme` out of `ConstantIndex`
     - Provide type alias for `CredentialRepresentation`
@@ -12,7 +12,7 @@ Release 7.0.0 (unreleased):
     - Add `UnknownCredentialScheme` so that the `scheme` property in several methods and classes is not null
     - Import data classes and data element strings from credentials into this library for [EU PID](https://github.com/a-sit-plus/eu-pid-credential), [EU PID in SD-JWT](https://github.com/a-sit-plus/eu-pid-credential-sdjwt/) and [Mobile Driving Licence](https://github.com/a-sit-plus/mobile-driving-licence-credential/)
     - Document usage of remote metadata retrieval
-    - Make JSON and ISO CBOR serializer registration safe for concurrent extension-library initialization 
+    - Make JSON and ISO CBOR serializer registration safe for concurrent extension-library initialization
 - OpenID for Verifiable Presentations:
     - Fix SD-JWT presentation validation for Digital Credentials API responses by checking the key binding JWT audience against the request origin (`origin:<origin>`) instead of the verifier client identifier.
     - Fix DCQL matching for credential queries without `claims`: selectively disclosable credentials now return an explicit mandatory-claims-only result, while non-selectively disclosable credentials still return all claims.

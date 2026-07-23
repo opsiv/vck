@@ -28,13 +28,14 @@ import at.asitplus.wallet.lib.agent.IsoDeviceRetrievalMatchingResult
 import at.asitplus.wallet.lib.agent.IssuerAgent
 import at.asitplus.wallet.lib.agent.KeyMaterial
 import at.asitplus.wallet.lib.agent.RandomSource
-import at.asitplus.wallet.lib.agent.toStoreCredentialInput
 import at.asitplus.wallet.lib.data.ConstantIndex.AtomicAttribute2023
 import at.asitplus.wallet.lib.data.ConstantIndex.AtomicAttribute2023.CLAIM_GIVEN_NAME
 import at.asitplus.wallet.lib.data.ConstantIndex.CredentialRepresentation.ISO_MDOC
 import at.asitplus.wallet.lib.data.ConstantIndex.CredentialRepresentation.SD_JWT
 import at.asitplus.wallet.lib.data.CredentialPresentationRequest
 import at.asitplus.wallet.lib.data.rfc3986.toUri
+import at.asitplus.wallet.lib.openid.DummyCredentialDataProvider.issueAndStoreIsoMdoc
+import at.asitplus.wallet.lib.openid.DummyCredentialDataProvider.issueAndStoreSdJwt
 import com.benasher44.uuid.uuid4
 import io.kotest.matchers.collections.shouldBeSingleton
 import io.kotest.matchers.collections.shouldHaveSize
@@ -65,17 +66,8 @@ val OpenId4VpDcApiProtocolTest by matrixSuite {
                 randomSource = RandomSource.Default,
             )
             val holderAgent: Holder = HolderAgent(holderKeyMaterial).also { agent ->
-                listOf(SD_JWT, ISO_MDOC).forEach { representation ->
-                    agent.storeCredential(
-                        issuerAgent.issueCredential(
-                            DummyCredentialDataProvider.getCredential(
-                                holderKeyMaterial.publicKey,
-                                AtomicAttribute2023,
-                                representation,
-                            ).getOrThrow()
-                        ).getOrThrow().toStoreCredentialInput()
-                    ).getOrThrow()
-                }
+                issueAndStoreSdJwt(agent, holderKeyMaterial)
+                issueAndStoreIsoMdoc(agent, holderKeyMaterial)
             }
             val storedCredentialIds = holderAgent.getCredentials()!!.map { it.getDcApiId() }
             object {

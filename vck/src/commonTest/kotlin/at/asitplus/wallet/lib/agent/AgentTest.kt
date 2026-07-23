@@ -21,6 +21,8 @@ import at.asitplus.openid.dcql.DCQLJwtVcCredentialQuery
 import at.asitplus.openid.dcql.DCQLQuery
 import at.asitplus.testballoon.matrix.fixture
 import at.asitplus.testballoon.matrix.matrixSuite
+import at.asitplus.wallet.lib.agent.DummyCredentialDataProvider.issueAndStorePlainJwt
+import at.asitplus.wallet.lib.agent.DummyCredentialDataProvider.issuePlainJwt
 import at.asitplus.wallet.lib.data.ConstantIndex
 import at.asitplus.wallet.lib.data.ConstantIndex.CredentialRepresentation.PLAIN_JWT
 import at.asitplus.wallet.lib.data.CredentialPresentationRequest
@@ -145,15 +147,7 @@ val AgentTest by matrixSuite {
         )
 
         test("dcql: simple walk-through success") {
-            it.holder.storeCredential(
-                it.issuer.issueCredential(
-                    DummyCredentialDataProvider.getCredential(
-                        it.holderKeyMaterial.publicKey,
-                        ConstantIndex.AtomicAttribute2023,
-                        PLAIN_JWT,
-                    ).getOrThrow()
-                ).getOrThrow().toStoreCredentialInput()
-            ).getOrThrow()
+            issueAndStorePlainJwt(it.holder, it.holderKeyMaterial, it.issuer)
 
             it.holder.getCredentials()?.size shouldBe 1
             val presentationParameters = it.holder.createDefaultPresentation(
@@ -172,15 +166,7 @@ val AgentTest by matrixSuite {
         }
 
         test("dcql: wrong keyId in presentation leads to error") {
-            it.holder.storeCredential(
-                it.issuer.issueCredential(
-                    DummyCredentialDataProvider.getCredential(
-                        it.holderKeyMaterial.publicKey,
-                        ConstantIndex.AtomicAttribute2023,
-                        PLAIN_JWT,
-                    ).getOrThrow()
-                ).getOrThrow().toStoreCredentialInput()
-            ).getOrThrow()
+            issueAndStorePlainJwt(it.holder, it.holderKeyMaterial, it.issuer)
 
             val presentationParameters = it.holder.createDefaultPresentation(
                 request = PresentationRequestParameters(
@@ -211,14 +197,7 @@ val AgentTest by matrixSuite {
         }
 
         test("dcql: valid presentation is valid") {
-            val credentials = it.issuer.issueCredential(
-                DummyCredentialDataProvider.getCredential(
-                    it.holderKeyMaterial.publicKey,
-                    ConstantIndex.AtomicAttribute2023,
-                    PLAIN_JWT,
-                ).getOrThrow()
-            ).getOrThrow()
-            it.holder.storeCredential(credentials.toStoreCredentialInput()).getOrThrow()
+            issueAndStorePlainJwt(it.holder, it.holderKeyMaterial, it.issuer)
             val presentationParameters = it.holder.createDefaultPresentation(
                 request = PresentationRequestParameters(
                     nonce = it.challenge,
@@ -242,14 +221,7 @@ val AgentTest by matrixSuite {
         }
 
         test("dcql: valid presentation is valid -- some other attributes revoked") {
-            val credentials = it.issuer.issueCredential(
-                DummyCredentialDataProvider.getCredential(
-                    it.holderKeyMaterial.publicKey,
-                    ConstantIndex.AtomicAttribute2023,
-                    PLAIN_JWT,
-                ).getOrThrow()
-            ).getOrThrow()
-            it.holder.storeCredential(credentials.toStoreCredentialInput()).getOrThrow()
+            issueAndStorePlainJwt(it.holder, it.holderKeyMaterial, it.issuer)
             val presentationParameters = it.holder.createDefaultPresentation(
                 request = PresentationRequestParameters(
                     nonce = it.challenge,
@@ -264,13 +236,7 @@ val AgentTest by matrixSuite {
                 .shouldNotBeNull()
                 .shouldBeInstanceOf<CreatePresentationResult.VpJws>()
 
-            val credentialToRevoke = it.issuer.issueCredential(
-                DummyCredentialDataProvider.getCredential(
-                    it.holderKeyMaterial.publicKey,
-                    ConstantIndex.AtomicAttribute2023,
-                    PLAIN_JWT,
-                ).getOrThrow()
-            ).getOrThrow()
+            val credentialToRevoke = issuePlainJwt(it.issuer, it.holderKeyMaterial)
                 .shouldBeInstanceOf<Issuer.IssuedCredential.VcJwt>()
 
             it.statusListIssuer.revokeCredentialByIndex(
@@ -283,14 +249,7 @@ val AgentTest by matrixSuite {
         }
 
         test("dcql: present raw vcjws when requiring no cryptographic holder binding") {
-            val credentials = it.issuer.issueCredential(
-                DummyCredentialDataProvider.getCredential(
-                    it.holderKeyMaterial.publicKey,
-                    ConstantIndex.AtomicAttribute2023,
-                    PLAIN_JWT,
-                ).getOrThrow()
-            ).getOrThrow()
-            it.holder.storeCredential(credentials.toStoreCredentialInput()).getOrThrow()
+            issueAndStorePlainJwt(it.holder, it.holderKeyMaterial, it.issuer)
             val presentationParameters = it.holder.createDefaultPresentation(
                 request = PresentationRequestParameters(
                     nonce = it.challenge,

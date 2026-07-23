@@ -11,6 +11,7 @@ import at.asitplus.signum.indispensable.cosef.io.ByteStringWrapper
 import at.asitplus.signum.indispensable.cosef.toCoseKey
 import at.asitplus.signum.indispensable.pki.X509Certificate
 import at.asitplus.testballoon.matrix.matrixSuite
+import at.asitplus.wallet.lib.agent.DummyCredentialDataProvider.issueIsoMdoc
 import at.asitplus.wallet.lib.data.ConstantIndex
 import at.asitplus.wallet.lib.data.ConstantIndex.CredentialRepresentation.ISO_MDOC
 import at.asitplus.wallet.lib.data.rfc.tokenStatusList.StatusListInfo
@@ -64,13 +65,7 @@ private data class Config(
 val ValidatorMdocTest by matrixSuite {
     with(Config.random()) {
         "credentials are valid for" {
-            val credential = issuer.issueCredential(
-                DummyCredentialDataProvider.getCredential(
-                    verifierKeyMaterial.publicKey,
-                    ConstantIndex.AtomicAttribute2023,
-                    ISO_MDOC,
-                ).getOrThrow()
-            ).getOrThrow()
+            val credential = issueIsoMdoc(issuer, verifierKeyMaterial)
                 .shouldBeInstanceOf<Issuer.IssuedCredential.Iso>().apply {
                     // Assert the issuanceOffset in IssuerAgent
                     issuerSigned.issuerAuth.payload.shouldNotBeNull().apply {
@@ -92,13 +87,7 @@ val ValidatorMdocTest by matrixSuite {
     }
     with(Config.random()) {
         "revoked credentials are not valid" {
-            val credential = issuer.issueCredential(
-                DummyCredentialDataProvider.getCredential(
-                    verifierKeyMaterial.publicKey,
-                    ConstantIndex.AtomicAttribute2023,
-                    ISO_MDOC,
-                ).getOrThrow()
-            ).getOrThrow()
+            val credential = issueIsoMdoc(issuer, verifierKeyMaterial)
                 .shouldBeInstanceOf<Issuer.IssuedCredential.Iso>()
 
             val issuerKey: CoseKey? =

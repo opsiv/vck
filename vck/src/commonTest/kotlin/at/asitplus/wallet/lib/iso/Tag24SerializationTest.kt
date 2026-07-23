@@ -31,13 +31,11 @@ import at.asitplus.signum.indispensable.cosef.io.ByteStringWrapper
 import at.asitplus.signum.indispensable.cosef.io.ByteStringWrapperSerializer
 import at.asitplus.signum.indispensable.cosef.io.coseCompliantSerializer
 import at.asitplus.testballoon.matrix.matrixSuite
-import at.asitplus.wallet.lib.agent.DummyCredentialDataProvider
+import at.asitplus.wallet.lib.agent.DummyCredentialDataProvider.issueIsoMdoc
 import at.asitplus.wallet.lib.agent.EphemeralKeyWithSelfSignedCert
 import at.asitplus.wallet.lib.agent.Issuer
 import at.asitplus.wallet.lib.agent.IssuerAgent
 import at.asitplus.wallet.lib.agent.RandomSource
-import at.asitplus.wallet.lib.data.ConstantIndex
-import at.asitplus.wallet.lib.data.ConstantIndex.CredentialRepresentation.ISO_MDOC
 import at.asitplus.wallet.lib.data.rfc3986.toUri
 import io.github.z4kn4fein.semver.Version
 import io.kotest.assertions.withClue
@@ -122,23 +120,19 @@ val Tag24SerializationTest by matrixSuite {
 
     "IssuerSigned from IssuerAgent" {
         val holderKeyMaterial = EphemeralKeyWithSelfSignedCert()
-        val issuedCredential = IssuerAgent(
+        val issuer = IssuerAgent(
             identifier = "https://issuer.example.com/".toUri(),
             randomSource = RandomSource.Default
-        ).issueCredential(
-            DummyCredentialDataProvider.getCredential(
-                holderKeyMaterial.publicKey,
-                ConstantIndex.AtomicAttribute2023,
-                ISO_MDOC
-            ).getOrThrow()
-        ).getOrThrow().shouldBeInstanceOf<Issuer.IssuedCredential.Iso>()
+        )
+        val issuedCredential = issueIsoMdoc(issuer, holderKeyMaterial)
+            .shouldBeInstanceOf<Issuer.IssuedCredential.Iso>()
 
-        val namespaces = issuedCredential.issuerSigned.namespaces
-        namespaces.shouldNotBeNull()
-        namespaces.shouldNotBeEmpty()
-        val numberOfClaims = namespaces.entries.fold(0) { acc, entry ->
-            acc + entry.value.entries.size
-        }
+        val numberOfClaims = issuedCredential.issuerSigned.namespaces
+            .shouldNotBeNull()
+            .shouldNotBeEmpty()
+            .entries.fold(0) { acc, entry ->
+                acc + entry.value.entries.size
+            }
         val serialized =
             coseCompliantSerializer.encodeToByteArray(issuedCredential.issuerSigned).encodeToString(Base16Strict)
         withClue(serialized) {
@@ -176,6 +170,7 @@ val Tag24SerializationTest by matrixSuite {
 
 
 }
+
 /**
  * Ensures serialization of this structure in [IssuerSigned.issuerAuth]:
  * ```

@@ -22,6 +22,7 @@ import at.asitplus.openid.dcql.DCQLJwtVcCredentialQuery
 import at.asitplus.openid.dcql.DCQLQuery
 import at.asitplus.testballoon.matrix.fixture
 import at.asitplus.testballoon.matrix.matrixSuite
+import at.asitplus.wallet.lib.agent.DummyCredentialDataProvider.issueAndStorePlainJwt
 import at.asitplus.wallet.lib.agent.Verifier.VerifyPresentationResult
 import at.asitplus.wallet.lib.data.ConstantIndex
 import at.asitplus.wallet.lib.data.ConstantIndex.CredentialRepresentation.PLAIN_JWT
@@ -90,15 +91,7 @@ val ValidatorVpTest by matrixSuite {
                 subjectCredentialStore = holderCredentialStore,
                 validatorVcJws = validator,
             ).also {
-                it.storeCredential(
-                    issuer.issueCredential(
-                        DummyCredentialDataProvider.getCredential(
-                            holderKeyMaterial.publicKey,
-                            ConstantIndex.AtomicAttribute2023,
-                            PLAIN_JWT,
-                        ).getOrThrow()
-                    ).getOrThrow().toStoreCredentialInput()
-                ).getOrThrow()
+                issueAndStorePlainJwt(it, holderKeyMaterial, issuer)
             }
             object {
                 val issuer = issuer
@@ -137,15 +130,7 @@ val ValidatorVpTest by matrixSuite {
             val request = it.verifier.createPresentationRequest()
             val otherHolderKeyMaterial = EphemeralKeyWithoutCert()
             val otherHolder = HolderAgent(otherHolderKeyMaterial)
-            otherHolder.storeCredential(
-                it.issuer.issueCredential(
-                    DummyCredentialDataProvider.getCredential(
-                        otherHolderKeyMaterial.publicKey,
-                        ConstantIndex.AtomicAttribute2023,
-                        PLAIN_JWT,
-                    ).getOrThrow()
-                ).getOrThrow().toStoreCredentialInput()
-            ).getOrThrow()
+            issueAndStorePlainJwt(otherHolder, otherHolderKeyMaterial, it.issuer)
             val holderVc = otherHolder.getCredentials()
                 .shouldNotBeNull()
                 .shouldBeSingleton()

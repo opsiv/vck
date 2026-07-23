@@ -24,20 +24,18 @@ import at.asitplus.wallet.lib.RequestOptionsCredential
 import at.asitplus.wallet.lib.agent.EphemeralKeyWithoutCert
 import at.asitplus.wallet.lib.agent.Holder
 import at.asitplus.wallet.lib.agent.HolderAgent
-import at.asitplus.wallet.lib.agent.IssuerAgent
 import at.asitplus.wallet.lib.agent.KeyMaterial
 import at.asitplus.wallet.lib.agent.RandomSource
 import at.asitplus.wallet.lib.agent.Verifier
-import at.asitplus.wallet.lib.agent.toStoreCredentialInput
 import at.asitplus.wallet.lib.data.AtomicAttribute2023
 import at.asitplus.wallet.lib.data.ConstantIndex
-import at.asitplus.wallet.lib.data.ConstantIndex.CredentialRepresentation.PLAIN_JWT
-import at.asitplus.wallet.lib.data.rfc3986.toUri
 import at.asitplus.wallet.lib.jws.JwsHeaderNone
 import at.asitplus.wallet.lib.jws.SignJwt
 import at.asitplus.wallet.lib.jws.VerifyJwsSignatureWithKey
 import at.asitplus.wallet.lib.oidc.RequestObjectJwsVerifier
 import at.asitplus.wallet.lib.oidvci.OAuth2Exception
+import at.asitplus.wallet.lib.openid.DummyCredentialDataProvider.issueAndStorePlainJwt
+import at.asitplus.wallet.lib.openid.DummyCredentialDataProvider.issueAndStoreSdJwt
 import com.benasher44.uuid.uuid4
 import io.kotest.assertions.throwables.shouldNotThrowAny
 import io.kotest.assertions.throwables.shouldThrow
@@ -55,19 +53,8 @@ val VerifierAttestationTest by matrixSuite {
     fixture {
         runBlocking {
             val holderKeyMaterial: KeyMaterial = EphemeralKeyWithoutCert()
-            val holderAgent: Holder = HolderAgent(holderKeyMaterial).also { agent ->
-                agent.storeCredential(
-                    IssuerAgent(
-                        identifier = "https://issuer.example.com/".toUri(),
-                        randomSource = RandomSource.Default
-                    ).issueCredential(
-                        DummyCredentialDataProvider.getCredential(
-                            holderKeyMaterial.publicKey,
-                            ConstantIndex.AtomicAttribute2023,
-                            PLAIN_JWT,
-                        ).getOrThrow()
-                    ).getOrThrow().toStoreCredentialInput()
-                )
+            val holderAgent: Holder = HolderAgent(holderKeyMaterial).also {
+                issueAndStorePlainJwt(it, holderKeyMaterial)
             }
             object {
                 val holderAgent = holderAgent
@@ -75,11 +62,6 @@ val VerifierAttestationTest by matrixSuite {
                 val clientId: String = "${uuid4()}"
                 val redirectUrl: String = "https://example.com/rp/${uuid4()}"
                 val walletUrl: String = "https://example.com/wallet/${uuid4()}"
-
-                val holderOid4vp: OpenId4VpHolder = OpenId4VpHolder(
-                    holder = holderAgent,
-                    randomSource = RandomSource.Default,
-                )
             }
         }
     } - {

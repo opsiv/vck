@@ -6,6 +6,8 @@ import at.asitplus.signum.indispensable.io.Base64UrlStrict
 import at.asitplus.signum.indispensable.pki.X509CertificateExtension
 import at.asitplus.testballoon.matrix.matrixSuite
 import at.asitplus.wallet.lib.agent.DummyCredentialDataProvider
+import at.asitplus.wallet.lib.agent.DummyCredentialDataProvider.issueAndStorePlainJwt
+import at.asitplus.wallet.lib.agent.DummyCredentialDataProvider.issueAndStoreSdJwt
 import at.asitplus.wallet.lib.agent.EphemeralKeyWithSelfSignedCert
 import at.asitplus.wallet.lib.agent.EphemeralKeyWithoutCert
 import at.asitplus.wallet.lib.agent.HolderAgent
@@ -35,15 +37,7 @@ val DCQLQueryProcedureAdapterTest by matrixSuite {
         val holder = HolderAgent(
             keyMaterial = holderKeyMaterial,
         )
-        val credential = holder.storeCredential(
-            issuer.issueCredential(
-                DummyCredentialDataProvider.getCredential(
-                    holderKeyMaterial.publicKey,
-                    ConstantIndex.AtomicAttribute2023,
-                    SD_JWT,
-                ).getOrThrow()
-            ).getOrThrow().toStoreCredentialInput()
-        ).getOrThrow()
+        val credential = issueAndStoreSdJwt(holder, holderKeyMaterial, issuer)
 
         DCQLQueryAdapter(
             Json.decodeFromString<DCQLQuery>(
@@ -140,15 +134,7 @@ val DCQLQueryProcedureAdapterTest by matrixSuite {
         val holder = HolderAgent(
             keyMaterial = holderKeyMaterial,
         )
-        val credential = holder.storeCredential(
-            issuer.issueCredential(
-                DummyCredentialDataProvider.getCredential(
-                    holderKeyMaterial.publicKey,
-                    ConstantIndex.AtomicAttribute2023,
-                    SD_JWT,
-                ).getOrThrow()
-            ).getOrThrow().toStoreCredentialInput()
-        ).getOrThrow()
+        val credential = issueAndStoreSdJwt(holder, holderKeyMaterial, issuer)
 
         DCQLQueryAdapter(
             Json.decodeFromString<DCQLQuery>(

@@ -6,21 +6,18 @@ import at.asitplus.signum.indispensable.josef.io.joseCompliantSerializer
 import at.asitplus.testballoon.matrix.fixture
 import at.asitplus.testballoon.matrix.matrixSuite
 import at.asitplus.wallet.lib.RequestOptionsCredential
-import at.asitplus.wallet.lib.agent.EphemeralKeyWithSelfSignedCert
 import at.asitplus.wallet.lib.agent.EphemeralKeyWithoutCert
 import at.asitplus.wallet.lib.agent.HolderAgent
-import at.asitplus.wallet.lib.agent.IssuerAgent
 import at.asitplus.wallet.lib.agent.RandomSource
 import at.asitplus.wallet.lib.agent.Verifier
 import at.asitplus.wallet.lib.agent.Verifier.VerifyPresentationResult.SuccessIso
-import at.asitplus.wallet.lib.agent.toStoreCredentialInput
 import at.asitplus.wallet.lib.data.AttributeIndex
 import at.asitplus.wallet.lib.data.ConstantIndex.AtomicAttribute2023
 import at.asitplus.wallet.lib.data.ConstantIndex.AtomicAttribute2023.CLAIM_GIVEN_NAME
 import at.asitplus.wallet.lib.data.ConstantIndex.CredentialRepresentation.ISO_MDOC
-import at.asitplus.wallet.lib.data.rfc3986.toUri
 import at.asitplus.wallet.lib.oidvci.formUrlEncode
 import at.asitplus.wallet.lib.openid.CreationOptions.Query
+import at.asitplus.wallet.lib.openid.DummyCredentialDataProvider.issueAndStoreIsoMdoc
 import at.asitplus.wallet.mdl.MDL_DOCTYPE
 import at.asitplus.wallet.mdl.MobileDrivingLicenceDataElements.FAMILY_NAME
 import at.asitplus.wallet.mdl.MobileDrivingLicenceDataElements.GIVEN_NAME
@@ -45,25 +42,8 @@ val OpenId4VpIsoProtocolTest by matrixSuite {
             val mdlScheme = AttributeIndex.resolveIdentifier(MDL_DOCTYPE, ISO_MDOC)
             val material = EphemeralKeyWithoutCert()
             val agent = HolderAgent(material).also {
-                val issuerAgent = IssuerAgent(
-                    keyMaterial = EphemeralKeyWithSelfSignedCert(),
-                    identifier = "https://issuer.example.com/".toUri(),
-                    randomSource = RandomSource.Default
-                )
-                it.storeCredential(
-                    issuerAgent.issueCredential(
-                        DummyCredentialDataProvider.getCredential(
-                            material.publicKey, mdlScheme, ISO_MDOC,
-                        ).getOrThrow()
-                    ).getOrThrow().toStoreCredentialInput()
-                )
-                it.storeCredential(
-                    issuerAgent.issueCredential(
-                        DummyCredentialDataProvider.getCredential(
-                            material.publicKey, AtomicAttribute2023, ISO_MDOC,
-                        ).getOrThrow()
-                    ).getOrThrow().toStoreCredentialInput()
-                )
+                issueAndStoreIsoMdoc(it, material, mdlScheme)
+                issueAndStoreIsoMdoc(it, material, AtomicAttribute2023)
             }
 
             object {

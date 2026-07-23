@@ -46,6 +46,8 @@ import at.asitplus.wallet.lib.data.ConstantIndex.AtomicAttribute2023.CLAIM_DATE_
 import at.asitplus.wallet.lib.data.ConstantIndex.AtomicAttribute2023.CLAIM_GIVEN_NAME
 import at.asitplus.wallet.lib.data.ConstantIndex.CredentialRepresentation.ISO_MDOC
 import at.asitplus.wallet.lib.data.rfc3986.toUri
+import at.asitplus.wallet.lib.openid.DummyCredentialDataProvider.issueAndStoreIsoMdoc
+import at.asitplus.wallet.lib.openid.DummyCredentialDataProvider.issueAndStorePlainJwt
 import at.asitplus.wallet.lib.utils.DefaultMapStore
 import com.benasher44.uuid.uuid4
 import io.github.z4kn4fein.semver.Version
@@ -79,20 +81,13 @@ val Iso180137AnnexCProtocolTest by matrixSuite {
     fixture {
         runBlocking {
             val holderKeyMaterial: KeyMaterial = EphemeralKeyWithoutCert()
+            val issuer = IssuerAgent(
+                keyMaterial = EphemeralKeyWithSelfSignedCert(),
+                identifier = "https://issuer.example.com/".toUri(),
+                randomSource = RandomSource.Default,
+            )
             val holderAgent = HolderAgent(holderKeyMaterial).also { agent ->
-                agent.storeCredential(
-                    IssuerAgent(
-                        keyMaterial = EphemeralKeyWithSelfSignedCert(),
-                        identifier = "https://issuer.example.com/".toUri(),
-                        randomSource = RandomSource.Default,
-                    ).issueCredential(
-                        DummyCredentialDataProvider.getCredential(
-                            holderKeyMaterial.publicKey,
-                            AtomicAttribute2023,
-                            ISO_MDOC,
-                        ).getOrThrow()
-                    ).getOrThrow().toStoreCredentialInput()
-                ).getOrThrow()
+                issueAndStoreIsoMdoc(agent, holderKeyMaterial, issuer)
             }
             object {
                 val decryptionKeyMaterial = EphemeralKeyWithoutCert()
@@ -274,7 +269,14 @@ val Iso180137AnnexCProtocolTest by matrixSuite {
             val dcApiResponse = f.walletResponse(isoMdocRequest)
             val tampered = dcApiResponse.response.encryptedResponseData.cipherText
                 .also { it[0] = (it[0].toInt() xor 0x01).toByte() }
-                .let { DCAPIResponse(EncryptedResponse(TYPE_DCAPI, EncryptedResponseData(dcApiResponse.response.encryptedResponseData.enc, it))) }
+                .let {
+                    DCAPIResponse(
+                        EncryptedResponse(
+                            TYPE_DCAPI,
+                            EncryptedResponseData(dcApiResponse.response.encryptedResponseData.enc, it)
+                        )
+                    )
+                }
 
             f.verifier.validateIsoResponse(
                 receivedData = tampered,

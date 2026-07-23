@@ -12,13 +12,13 @@ import at.asitplus.wallet.lib.agent.PresentationRequestParameters
 import at.asitplus.wallet.lib.agent.SubjectCredentialStore
 
 
+
 object IsoMdocZkProofRegistry {
     private val factories = LinkedHashSet<IsoMdocZkProofFactory>()
 
-    init {
-        // TODO: rethink autoregistering
-    }
-
+    /**
+     * Use [register] in your application to register backends for [IsoMdocZkProofFactory].
+     */
     fun register(factory: IsoMdocZkProofFactory): KmmResult<IsoMdocZkProofFactory> {
         if (!factories.contains(factory)) {
             val initResult = factory.initialize()
@@ -31,7 +31,6 @@ object IsoMdocZkProofRegistry {
                 onFailure = { KmmResult.failure(it) }
             )
         } else {
-            // TODO: adjust exception type
             return KmmResult.failure(IllegalStateException("Factory already registered!"))
         }
     }

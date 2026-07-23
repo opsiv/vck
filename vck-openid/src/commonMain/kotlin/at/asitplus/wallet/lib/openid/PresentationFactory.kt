@@ -93,7 +93,8 @@ internal class PresentationFactory(
                     sessionTranscript = sessionTranscript,
                     docType = it.docType,
                 )
-            }
+            },
+            sessionTranscript = sessionTranscript
         )
 
         holder.createPresentation(

@@ -8,7 +8,7 @@ import at.asitplus.signum.indispensable.cosef.io.ByteStringWrapper
 import kotlinx.datetime.LocalDate
 
 abstract class IsoMdocZkProof protected constructor() {
-    abstract val zkSystemSpec: ZkSystem
+    abstract val zkSystem: ZkSystem
     abstract val issuerZkSignedNamespaces: Map<String, ZkSignedList>
     abstract val deviceZkSignedNamespaces: Map<String, ZkSignedList>
     abstract val rawProof: ByteArray
@@ -22,7 +22,7 @@ abstract class IsoMdocZkProof protected constructor() {
         zkDocumentDataBytes = ByteStringWrapper(
             ZkDocumentData(
                 docType = docType,
-                zkSystemId = zkSystemSpec.zkSystemId,
+                zkSystemId = zkSystem.zkSystemId,
                 timestamp = timestamp,
                 issuerSigned = issuerZkSignedNamespaces,
                 deviceSigned = deviceZkSignedNamespaces,

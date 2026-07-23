@@ -110,14 +110,20 @@ class IsoMdocLongfellowZKProof private constructor(
 
         override suspend fun generate(
             request: PresentationRequestParameters,
-            credential: SubjectCredentialStore.StoreEntry.Iso,
+            credential: StoreEntry.Iso,
             requestedClaims: Collection<NormalizedJsonPath>,
-            zkSystem: ZkSystem
+            zkSystems: List<ZkSystem>
         ): IsoMdocZkProof {
-            requireSupported(zkSystem)
+            require(zkSystems.all{ supports(it) }) { " Incompatible ZkSystem! " }
 
             val sessionTranscript = requireNotNull(request.sessionTranscript) { "Session transcript required" }
             val document = credential.discloseRequestedClaims(requestedClaims, request)
+
+            require(document.issuerSigned.namespaces?.size == 1) { "Longfellow only support credentials with one namespace!" }
+            val countDisclosedAttributes = document.issuerSigned.namespaces?.values?.sumOf { it.entries.size } ?: 0
+
+            val zkSystem = zkSystems.firstOrNull { it.params.containsKey(NUM_ATTRIBUTES_IDENTIFIER) && it.params[NUM_ATTRIBUTES_IDENTIFIER] == countDisclosedAttributes }
+                ?: throw PresentationException("No ZkSystem found that supports the number of disclosed attributes!")
 
             // TODO: remove this check after migrating to new upstream codebase
             require(isIso8601Compliant(document.issuerSigned.issuerAuth.payload?.validityInfo)) {
@@ -181,7 +187,7 @@ class IsoMdocLongfellowZKProof private constructor(
             sessionTranscript: SessionTranscript,
             zkSystem: ZkSystem
         ): IsoMdocZkProof {
-            requireSupported(zkSystem)
+            require( supports(zkSystem)) { " Incompatible ZkSystem: $zkSystem! " }
 
             val timestamp = zkDocument.zkDocumentDataBytes.value.timestamp
 //            require(timestamp.nanosecondsOfSecond == 0) { "Timestamp does not conform to ISO 8601" }
@@ -207,9 +213,6 @@ class IsoMdocLongfellowZKProof private constructor(
             )
         }
 
-        private fun requireSupported(zkSystem: ZkSystem) {
-            require(supports(zkSystem)) { "Incompatible ZkSystem: ${zkSystem.system}" }
-        }
 
 
     }

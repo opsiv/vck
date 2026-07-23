@@ -48,12 +48,13 @@ import io.kotest.matchers.string.shouldNotContain
 import io.kotest.matchers.string.shouldStartWith
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.ktor.http.*
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonElement
 
 val RedirectUriClientTest by matrixSuite {
 
-    fixture({
-        kotlinx.coroutines.runBlocking {
+    fixture {
+        runBlocking {
             val holderKeyMaterial: KeyMaterial = EphemeralKeyWithoutCert()
             val holderAgent: Holder = HolderAgent(holderKeyMaterial).also { agent ->
                 agent.storeCredential(
@@ -85,7 +86,7 @@ val RedirectUriClientTest by matrixSuite {
                 )
             }
         }
-    }) - {
+    } - {
 
         "test with Fragment" {
             val authnRequest = it.verifierOid4vp.createAuthnRequest(

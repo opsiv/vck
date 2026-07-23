@@ -12,6 +12,7 @@ import io.kotest.matchers.maps.shouldHaveSize
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlin.time.Clock
@@ -19,50 +20,52 @@ import kotlin.time.Duration.Companion.minutes
 
 val VerifiablePresentationFactorySdJwtTest by matrixSuite {
 
-    fixture({ kotlinx.coroutines.runBlocking {
-        val issuer = IssuerAgent(
-            keyMaterial = EphemeralKeyWithSelfSignedCert(),
-            identifier = "https://issuer.example.com/".toUri(),
-            randomSource = RandomSource.Default,
-        )
-        val holderKeyMaterial = EphemeralKeyWithoutCert()
-        val holder = HolderAgent(
-            keyMaterial = holderKeyMaterial,
-        )
+    fixture {
+        runBlocking {
+            val issuer = IssuerAgent(
+                keyMaterial = EphemeralKeyWithSelfSignedCert(),
+                identifier = "https://issuer.example.com/".toUri(),
+                randomSource = RandomSource.Default,
+            )
+            val holderKeyMaterial = EphemeralKeyWithoutCert()
+            val holder = HolderAgent(
+                keyMaterial = holderKeyMaterial,
+            )
 
-        val sdJwtCredential = holder.storeCredential(
-            issuer.issueCredential(
-                CredentialToBeIssued.VcSd(
-                    claims = listOf(
-                        ClaimToBeIssued("name", "Winston Smith"),
-                        ClaimToBeIssued(
-                            "birthplace",
-                            listOf(
-                                ClaimToBeIssued("city", "Vienna"),
-                                ClaimToBeIssued("country", "Austria")
+            val sdJwtCredential = holder.storeCredential(
+                issuer.issueCredential(
+                    CredentialToBeIssued.VcSd(
+                        claims = listOf(
+                            ClaimToBeIssued("name", "Winston Smith"),
+                            ClaimToBeIssued(
+                                "birthplace",
+                                listOf(
+                                    ClaimToBeIssued("city", "Vienna"),
+                                    ClaimToBeIssued("country", "Austria")
+                                )
+                            ),
+                            ClaimToBeIssued(
+                                "address",
+                                listOf(
+                                    ClaimToBeIssued("city", "London"),
+                                    ClaimToBeIssued("country", "Oceania")
+                                )
                             )
                         ),
-                        ClaimToBeIssued(
-                            "address",
-                            listOf(
-                                ClaimToBeIssued("city", "London"),
-                                ClaimToBeIssued("country", "Oceania")
-                            )
-                        )
-                    ),
-                    expiration = Clock.System.now() + 5.minutes,
-                    scheme = ConstantIndex.AtomicAttribute2023,
-                    subjectPublicKey = holderKeyMaterial.publicKey,
-                    userInfo = OidcUserInfoExtended.fromOidcUserInfo(OidcUserInfo("subject")).getOrThrow(),
-                )
-            ).getOrThrow().toStoreCredentialInput()
-        ).getOrThrow()
+                        expiration = Clock.System.now() + 5.minutes,
+                        scheme = ConstantIndex.AtomicAttribute2023,
+                        subjectPublicKey = holderKeyMaterial.publicKey,
+                        userInfo = OidcUserInfoExtended.fromOidcUserInfo(OidcUserInfo("subject")).getOrThrow(),
+                    )
+                ).getOrThrow().toStoreCredentialInput()
+            ).getOrThrow()
 
-        object {
-            val verifiablePresentationFactory = VerifiablePresentationFactory(holderKeyMaterial)
-            val sdJwtCredential = sdJwtCredential
+            object {
+                val verifiablePresentationFactory = VerifiablePresentationFactory(holderKeyMaterial)
+                val sdJwtCredential = sdJwtCredential
+            }
         }
-    } }) - {
+    } - {
 
         "disclosed SD-JWT contains only one disclosure for one plain disclosed attribute" {
             val disclosedAttributes = listOf(

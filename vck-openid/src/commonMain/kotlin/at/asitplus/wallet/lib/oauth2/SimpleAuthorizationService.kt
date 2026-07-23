@@ -58,7 +58,6 @@ import io.ktor.http.*
 import io.matthewnelson.encoding.core.Encoder.Companion.encodeToString
 import kotlinx.serialization.json.JsonObject
 import kotlin.jvm.JvmOverloads
-import kotlin.time.Duration
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.minutes
 
@@ -153,8 +152,6 @@ class SimpleAuthorizationService @JvmOverloads constructor(
     private val requestObjectSigningAlgorithms: Set<JwsAlgorithm.Signature>? = setOf(JwsAlgorithm.Signature.ES256),
     /** Used for [OAuth2AuthorizationServerMetadata.clientAttestationSigningAlgValuesSupportedStrings] */
     private val supportedSigningAlgorithms: Set<JwsAlgorithm.Signature> = DEFAULT_WALLET_ATTESTATION_ALGORITHMS,
-    @Deprecated("Has been moved to [CredentialIssuer]")
-    private val preferredClientStatusPeriod: Duration? = 31.days,
     /** Used to sign JWT introspection responses (RFC 9701). */
     private val signIntrospectionJwt: SignJwtFun<TokenIntrospectionResponse> =
         SignJwt(EphemeralKeyWithoutCert(), JwsHeaderCertOrJwk()),

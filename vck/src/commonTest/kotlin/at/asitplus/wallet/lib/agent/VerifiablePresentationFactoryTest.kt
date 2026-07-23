@@ -39,6 +39,7 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.matthewnelson.encoding.core.Decoder.Companion.decodeToByteArray
 import io.matthewnelson.encoding.core.Encoder.Companion.encodeToString
+import kotlinx.coroutines.runBlocking
 import kotlin.random.Random
 import kotlinx.serialization.builtins.ByteArraySerializer
 import kotlinx.serialization.json.JsonObject
@@ -50,43 +51,45 @@ import kotlinx.serialization.json.put
 
 val VerifiablePresentationFactoryTest by matrixSuite {
 
-    fixture({ kotlinx.coroutines.runBlocking {
-        val issuer = IssuerAgent(
-            keyMaterial = EphemeralKeyWithSelfSignedCert(),
-            identifier = "https://issuer.example.com/".toUri(),
-            randomSource = RandomSource.Default,
-        )
-        val holderKeyMaterial = EphemeralKeyWithoutCert()
-        val holder = HolderAgent(
-            keyMaterial = holderKeyMaterial,
-        )
+    fixture {
+        runBlocking {
+            val issuer = IssuerAgent(
+                keyMaterial = EphemeralKeyWithSelfSignedCert(),
+                identifier = "https://issuer.example.com/".toUri(),
+                randomSource = RandomSource.Default,
+            )
+            val holderKeyMaterial = EphemeralKeyWithoutCert()
+            val holder = HolderAgent(
+                keyMaterial = holderKeyMaterial,
+            )
 
-        val sdJwtCredential = holder.storeCredential(
-            issuer.issueCredential(
-                DummyCredentialDataProvider.getCredential(
-                    holderKeyMaterial.publicKey,
-                    ConstantIndex.AtomicAttribute2023,
-                    SD_JWT,
-                ).getOrThrow()
-            ).getOrThrow().toStoreCredentialInput()
-        ).getOrThrow()
+            val sdJwtCredential = holder.storeCredential(
+                issuer.issueCredential(
+                    DummyCredentialDataProvider.getCredential(
+                        holderKeyMaterial.publicKey,
+                        ConstantIndex.AtomicAttribute2023,
+                        SD_JWT,
+                    ).getOrThrow()
+                ).getOrThrow().toStoreCredentialInput()
+            ).getOrThrow()
 
-        val isoCredential = holder.storeCredential(
-            issuer.issueCredential(
-                DummyCredentialDataProvider.getCredential(
-                    holderKeyMaterial.publicKey,
-                    ConstantIndex.AtomicAttribute2023,
-                    ISO_MDOC,
-                ).getOrThrow()
-            ).getOrThrow().toStoreCredentialInput()
-        ).getOrThrow()
+            val isoCredential = holder.storeCredential(
+                issuer.issueCredential(
+                    DummyCredentialDataProvider.getCredential(
+                        holderKeyMaterial.publicKey,
+                        ConstantIndex.AtomicAttribute2023,
+                        ISO_MDOC,
+                    ).getOrThrow()
+                ).getOrThrow().toStoreCredentialInput()
+            ).getOrThrow()
 
-        object {
-            val verifiablePresentationFactory = VerifiablePresentationFactory(holderKeyMaterial)
-            val sdJwtCredential = sdJwtCredential
-            val isoCredential = isoCredential
+            object {
+                val verifiablePresentationFactory = VerifiablePresentationFactory(holderKeyMaterial)
+                val sdJwtCredential = sdJwtCredential
+                val isoCredential = isoCredential
+            }
         }
-    } }) - {
+    } - {
 
         "sd-jwt createVerifiablePresentation uses disclosedAttributes (collection)" {
             val disclosedAttributes = listOf(

@@ -20,10 +20,11 @@ import at.asitplus.wallet.lib.oidvci.OAuth2Exception
 import com.benasher44.uuid.uuid4
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.nulls.shouldNotBeNull
+import kotlinx.coroutines.runBlocking
 
 val JarmTest by matrixSuite {
-    fixture({
-        kotlinx.coroutines.runBlocking {
+    fixture {
+        runBlocking {
             val holderKeyMaterial = EphemeralKeyWithoutCert()
             val holderAgent = HolderAgent(holderKeyMaterial).also {
                 it.storeCredential(
@@ -54,7 +55,7 @@ val JarmTest by matrixSuite {
                 )
             }
         }
-    }) - {
+    } - {
 
         /**
          * Incorrect behaviour arises when the [RelyingPartyMetadata.jsonWebKeySet] cannot be retrieved.

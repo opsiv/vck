@@ -28,11 +28,12 @@ import at.asitplus.wallet.lib.oidvci.formUrlEncode
 import io.kotest.matchers.collections.shouldBeSingleton
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.types.shouldBeInstanceOf
+import kotlinx.coroutines.runBlocking
 
 val OpenId4VpX509SanDnsTest by matrixSuite {
 
-    fixture({
-        kotlinx.coroutines.runBlocking {
+    fixture {
+        runBlocking {
             val holderKeyMaterial = EphemeralKeyWithoutCert()
             val holderAgent = HolderAgent(holderKeyMaterial).also {
                 it.storeCredential(
@@ -83,7 +84,7 @@ val OpenId4VpX509SanDnsTest by matrixSuite {
 
             }
         }
-    }) - {
+    } - {
 
         "test with request object" {
             val requestUrl = "https://example.com/request"

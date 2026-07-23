@@ -210,7 +210,6 @@ val OpenId4VciClientTest by matrixSuite {
                             BuildClientAttestationJwt(
                                 SignJwt(EphemeralKeyWithSelfSignedCert(), JwsHeaderCertOrJwk()),
                                 clientId = clientId,
-                                issuer = "issuer",
                                 clientKey = clientAuthKeyMaterial.jsonWebKey
                             )
                         }

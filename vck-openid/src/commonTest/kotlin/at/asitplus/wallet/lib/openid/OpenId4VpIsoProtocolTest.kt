@@ -40,7 +40,7 @@ import kotlinx.serialization.json.JsonObject
 
 val OpenId4VpIsoProtocolTest by matrixSuite {
 
-    fixture({
+    fixture {
         runBlocking {
             val mdlScheme = AttributeIndex.resolveIdentifier(MDL_DOCTYPE, ISO_MDOC)
             val material = EphemeralKeyWithoutCert()
@@ -88,7 +88,7 @@ val OpenId4VpIsoProtocolTest by matrixSuite {
                 )
             }
         }
-    }) - {
+    } - {
         "test with Fragment for mDL" {
             val requestOptions = OpenId4VpRequestOptions(
                 presentationRequest = CredentialPresentationRequestBuilder(

@@ -147,7 +147,6 @@ val OAuth2KtorClientTest by matrixSuite {
                         BuildClientAttestationJwt(
                             SignJwt(EphemeralKeyWithSelfSignedCert(), JwsHeaderCertOrJwk()),
                             clientId = clientId,
-                            issuer = "issuer",
                             clientKey = clientAuthKeyMaterial.jsonWebKey
                         )
                     }

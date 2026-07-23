@@ -58,7 +58,6 @@ object BuildClientAttestationJwt {
      * [OAuth 2.0 Attestation-Based Client Authentication](https://www.ietf.org/archive/id/draft-ietf-oauth-attestation-based-client-auth-04.html)
      *
      * @param clientId OAuth 2.0 client ID of the wallet
-     * @param issuer deprecated and ignored. TS3 WUA 1.5 removes `iss`; Wallet Provider identity comes from `x5c`.
      * @param clientKey key to be attested, i.e. included in a [ConfirmationClaim]
      * @param walletName identifier of the Wallet Solution.
      * @param walletVersion version of the Wallet Solution.
@@ -71,8 +70,6 @@ object BuildClientAttestationJwt {
     suspend operator fun invoke(
         signJwt: SignJwtFun<JsonWebToken>,
         clientId: String,
-        @Suppress("UNUSED_PARAMETER")
-        issuer: String? = null,
         clientKey: JsonWebKey,
         walletName: String = clientId,
         walletVersion: String = "unspecified",

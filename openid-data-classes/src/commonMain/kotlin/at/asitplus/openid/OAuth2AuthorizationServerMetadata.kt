@@ -5,7 +5,6 @@ import at.asitplus.signum.indispensable.josef.JwsAlgorithm
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
-import kotlin.time.Duration
 
 /**
  * This implements [RFC8414](https://datatracker.ietf.org/doc/html/rfc8414)
@@ -410,11 +409,6 @@ data class OAuth2AuthorizationServerMetadata(
      */
     @SerialName("client_attestation_signing_alg_values_supported")
     val clientAttestationSigningAlgValuesSupportedStrings: Set<String>? = null,
-
-    @SerialName("preferred_client_status_period")
-    @Serializable(with = DurationSecondsIntSerializer::class)
-    @Deprecated("Has been moved to [IssuerMetadata]")
-    val preferredClientStatusPeriod: Duration? = null,
 ) {
 
     /**

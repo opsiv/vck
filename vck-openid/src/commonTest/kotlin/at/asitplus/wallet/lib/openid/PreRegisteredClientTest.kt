@@ -53,25 +53,26 @@ import io.kotest.matchers.string.shouldNotContain
 import io.kotest.matchers.string.shouldStartWith
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.ktor.http.*
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonElement
 
 val PreRegisteredClientTest by matrixSuite {
 
-    fixture({
-        kotlinx.coroutines.runBlocking {
+    fixture {
+        runBlocking {
             val holderKeyMaterial = EphemeralKeyWithoutCert()
             val holderAgent = HolderAgent(holderKeyMaterial).also {
                 it.storeCredential(
                     IssuerAgent(
                         identifier = "https://issuer.example.com/".toUri(),
-                        randomSource = RandomSource.Default
+                        randomSource = RandomSource.Default,
                     ).issueCredential(
                         DummyCredentialDataProvider.getCredential(
                             holderKeyMaterial.publicKey,
                             ConstantIndex.AtomicAttribute2023,
                             PLAIN_JWT,
-                        ).getOrThrow()
-                    ).getOrThrow().toStoreCredentialInput()
+                        ).getOrThrow(),
+                    ).getOrThrow().toStoreCredentialInput(),
                 )
             }
             object {
@@ -87,21 +88,21 @@ val PreRegisteredClientTest by matrixSuite {
                     randomSource = RandomSource.Default,
                     lookupJsonWebKeysForClient = {
                         if (it.clientId == clientId) JsonWebKeySet(listOf(decryptionKeyMaterial.jsonWebKey)) else null
-                    }
+                    },
                 )
                 var verifierOid4vp = OpenId4VpVerifier(
                     keyMaterial = verifierKeyMaterial,
                     clientIdScheme = ClientIdScheme.PreRegistered(clientId, redirectUrl),
-                    decryptionKeyMaterial = decryptionKeyMaterial
+                    decryptionKeyMaterial = decryptionKeyMaterial,
                 )
                 val defaultRequestOptions = OpenId4VpRequestOptions(
                     presentationRequest = CredentialPresentationRequestBuilder(
-                        RequestOptionsCredential(ConstantIndex.AtomicAttribute2023)
+                        RequestOptionsCredential(ConstantIndex.AtomicAttribute2023),
                     ).toPresentationExchangeRequest(),
                 )
             }
         }
-    }) - {
+    } - {
 
         "test with Fragment" {
             val authnRequest = it.verifierOid4vp.createAuthnRequest(

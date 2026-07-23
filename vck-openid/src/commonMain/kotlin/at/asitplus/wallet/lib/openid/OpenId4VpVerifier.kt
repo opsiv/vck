@@ -2,7 +2,6 @@ package at.asitplus.wallet.lib.openid
 
 import at.asitplus.KmmResult
 import at.asitplus.catching
-import at.asitplus.dcapi.OpenId4VpResponse
 import at.asitplus.openid.AuthenticationRequestParameters
 import at.asitplus.openid.IdToken
 import at.asitplus.openid.JarRequestParameters
@@ -106,12 +105,6 @@ class OpenId4VpVerifier @JvmOverloads constructor(
     private val responseParser = ResponseParser(decryptJwe, verifyJwsObject)
     private val timeLeeway = timeLeewaySeconds.toDuration(DurationUnit.SECONDS)
 
-    @Deprecated("Moved to upper level", ReplaceWith("CreationOptions", "at.asitplus.wallet.lib.openid.CreationOptions"))
-    typealias CreationOptions = at.asitplus.wallet.lib.openid.CreationOptions
-
-    @Deprecated("Moved to upper level", ReplaceWith("CreatedRequest", "at.asitplus.wallet.lib.openid.CreatedRequest"))
-    typealias CreatedRequest = at.asitplus.wallet.lib.openid.CreatedRequest
-
     /**
      * Creates the [at.asitplus.openid.RelyingPartyMetadata], without encryption (see [metadataWithEncryption])
      */
@@ -128,8 +121,8 @@ class OpenId4VpVerifier @JvmOverloads constructor(
      */
     suspend fun createAuthnRequest(
         requestOptions: OpenId4VpRequestOptions,
-        creationOptions: at.asitplus.wallet.lib.openid.CreationOptions,
-    ): KmmResult<at.asitplus.wallet.lib.openid.CreatedRequest> = catching {
+        creationOptions: CreationOptions,
+    ): KmmResult<CreatedRequest> = catching {
         when (creationOptions) {
             is CreationOptions.Query -> {
                 require(clientIdScheme !is ClientIdScheme.CertificateSanDns) // per OpenID4VP d23 5.10.4
@@ -185,17 +178,10 @@ class OpenId4VpVerifier @JvmOverloads constructor(
         }
     }
 
-    private fun String.toCreatedRequest() = at.asitplus.wallet.lib.openid.CreatedRequest(this)
+    private fun String.toCreatedRequest() = CreatedRequest(this)
     private fun String.toCreatedRequest(
         loadRequestObject: suspend (RequestObjectParameters?) -> KmmResult<String>,
-    ) = at.asitplus.wallet.lib.openid.CreatedRequest(this, loadRequestObject)
-
-    @Deprecated("Use createAuthnRequest instead with CreationOptions.SignedRequestByReference")
-    suspend fun createAuthnRequestAsSignedRequestObject(
-        requestOptions: OpenId4VpRequestOptions,
-        requestObjectParameters: RequestObjectParameters? = null,
-    ): KmmResult<JwsCompactTyped<AuthenticationRequestParameters>> =
-        createSignedRequestObject(requestOptions, requestObjectParameters)
+    ) = CreatedRequest(this, loadRequestObject)
 
     internal suspend fun createSignedRequestObject(
         requestOptions: OpenId4VpRequestOptions,
@@ -203,22 +189,10 @@ class OpenId4VpVerifier @JvmOverloads constructor(
     ): KmmResult<JwsCompactTyped<AuthenticationRequestParameters>> =
         requestFactory.createSignedRequestObject(requestOptions, RequestObjectSigning.SiopJar, requestObjectParameters)
 
-    @Deprecated("Use createAuthnRequest instead with CreationOptions.SignedRequestByValue")
-    suspend fun createAuthnRequest(
-        requestOptions: OpenId4VpRequestOptions,
-        requestObjectParameters: RequestObjectParameters? = null,
-    ) = createPlainAuthnRequest(requestOptions, requestObjectParameters)
-
     internal suspend fun createPlainAuthnRequest(
         requestOptions: OpenId4VpRequestOptions,
         requestObjectParameters: RequestObjectParameters? = null,
     ) = requestFactory.createPlainAuthnRequest(requestOptions, requestObjectParameters)
-
-    @Deprecated("Should not be necessary at all, simply call [createAuthnRequest]")
-    suspend fun submitAuthnRequest(
-        authenticationRequestParameters: AuthenticationRequestParameters,
-        externalId: String? = null,
-    ) = requestFactory.storeAuthnRequest(authenticationRequestParameters)
 
     /**
      * Validates an Authentication Response from the Wallet, where [input] is either:
@@ -231,26 +205,6 @@ class OpenId4VpVerifier @JvmOverloads constructor(
     ): KmmResult<AuthnResponseResult> = catching {
         val response = responseParser.parseAuthnResponse(input)
         validateAuthnResponse(response).getOrThrow()
-    }
-
-    @Suppress("DEPRECATION")
-    @Deprecated("OpenID4VP doesn't support externalId, the state is always available")
-    suspend fun validateAuthnResponse(
-        input: String,
-        externalId: String? = null,
-    ): KmmResult<AuthnResponseResult> = catching {
-        val response = responseParser.parseAuthnResponse(input)
-        validateAuthnResponse(response, externalId).getOrThrow()
-    }
-
-    @Suppress("DEPRECATION")
-    @Deprecated("Use DCAPI Verifier for that")
-    suspend fun validateAuthnResponse(
-        input: OpenId4VpResponse,
-        externalId: String,
-    ): KmmResult<AuthnResponseResult> = catching {
-        val response = responseParser.parseAuthnResponse(input)
-        validateAuthnResponse(response, externalId).getOrThrow()
     }
 
     /**
@@ -297,12 +251,6 @@ class OpenId4VpVerifier @JvmOverloads constructor(
             }
         }
     }
-
-    @Deprecated("OpenID4VP doesn't support externalId, the state is always available")
-    suspend fun validateAuthnResponse(
-        input: ResponseParametersFrom,
-        externalId: String? = null,
-    ): KmmResult<AuthnResponseResult> = validateAuthnResponse(input)
 
     private fun AuthnResponseResult.isFullyValid(): Boolean =
         idTokenValidationResult?.isFailure != true &&

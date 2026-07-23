@@ -13,9 +13,6 @@ data class SdJwtInputValidationResult(
     val payloadJsonValidationSummary: KmmResult<SdJwtDecoded>,
     val payload: KmmResult<Verifier.VerifyCredentialResult.SuccessSdJwt>,
 ) {
-    @Deprecated("Use integrityValidationResult.isSuccess instead")
-    val isIntegrityGood: Boolean
-        get() = integrityValidationResult.isSuccess
 
     val isSuccess: Boolean
         get() = listOf(

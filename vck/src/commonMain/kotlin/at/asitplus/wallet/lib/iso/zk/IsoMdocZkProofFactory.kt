@@ -19,7 +19,7 @@ interface IsoMdocZkProofFactory {
         request: PresentationRequestParameters,
         credential: SubjectCredentialStore.StoreEntry.Iso,
         requestedClaims: Collection<NormalizedJsonPath>,
-        zkSystem: ZkSystem
+        zkSystems: List<ZkSystem>
     ): IsoMdocZkProof
 
     fun load(

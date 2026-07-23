@@ -20,42 +20,37 @@ object IsoMdocZkProofRegistry {
      * Use [register] in your application to register backends for [IsoMdocZkProofFactory].
      */
     fun register(factory: IsoMdocZkProofFactory): KmmResult<IsoMdocZkProofFactory> {
-        if (!factories.contains(factory)) {
-            val initResult = factory.initialize()
-            return initResult.fold(
-                onSuccess = {
-                    ZkSystemParamRegistry.register(factory.systemName, factory.paramSerializers)
-                    factories.add(factory)
-                    KmmResult.success(factory)
-                },
-                onFailure = { KmmResult.failure(it) }
-            )
-        } else {
+        if (factories.contains(factory)) {
             return KmmResult.failure(IllegalStateException("Factory already registered!"))
         }
+
+        return factory.initialize().fold(
+            onSuccess = {
+                ZkSystemParamRegistry.register(factory.systemName, factory.paramSerializers)
+                factories.add(factory)
+                KmmResult.success(factory)
+            },
+            onFailure = { KmmResult.failure(it) }
+        )
     }
 
 
-    private fun findFactories(zkSystems: List<ZkSystem>): List<Pair<IsoMdocZkProofFactory, ZkSystem>> {
-        val matches = zkSystems.flatMap { system ->
-            factories
-                .filter { factory -> factory.supports(system) }
-                .map { factory -> factory to system }
-        }
+    private fun findFactories(zkSystems: List<ZkSystem>): Map<IsoMdocZkProofFactory, List<ZkSystem>> =
+        factories.associateWith { factory -> zkSystems.filter { factory.supports(it) } }
+            .filterValues { it.isNotEmpty() }
 
-        if (matches.isEmpty()) {
-            throw PresentationException("Unsupported zkSystem!")
-        }
 
-        return matches
-    }
+    private fun selectFactory(zkSystems: List<ZkSystem>): Pair<IsoMdocZkProofFactory, List<ZkSystem>> =
+        // TODO: Consider using a different strategy than picking the first factory that supports at least one of the requested systems
+        findFactories(zkSystems).entries
+            .firstOrNull()
+            ?.let { it.key to it.value }
+            ?: throw PresentationException("No factory found for any of the requested ZK systems!")
 
-    // TODO: Consider employing sorting for multiple hits
-    private fun findFactory(zkSystems: List<ZkSystem>): Pair<IsoMdocZkProofFactory, ZkSystem> {
-        val matches = findFactories(zkSystems)
-        return matches.first()
-    }
 
+    /**
+     * Generates a verifiable [IsoMdocZkProof] (including the zero-knowledge proof)
+     */
     suspend fun generate(
         request: PresentationRequestParameters,
         credential: SubjectCredentialStore.StoreEntry.Iso,
@@ -64,17 +59,27 @@ object IsoMdocZkProofRegistry {
         val claims = parametersAndClaims.claims
         val parameters = parametersAndClaims.presentationConstraints
         require(parameters is PresentationConstraints.IsoMdocZk) { "Constraints incompatible with Iso mDoc!" }
-        val (isoMdocZkProofFactory, zkSystemSpec) = findFactory(parameters.request.systemSpecs)
-        return isoMdocZkProofFactory.generate(request, credential, claims, zkSystemSpec)
+        val (isoMdocZkProofFactory, zkSystems) = selectFactory(parameters.request.systemSpecs)
+        return isoMdocZkProofFactory.generate(request, credential, claims, zkSystems)
     }
 
+    /**
+     * Assembles a verifiable [IsoMdocZkProof] from an existing [ZkDocument] and available [ZkSystem]s
+     */
     fun load(
-        zkSystems: List<ZkSystem>,
+        availableZkSystems: List<ZkSystem>,
         zkDocument: ZkDocument,
         sessionTranscript: SessionTranscript
     ): IsoMdocZkProof {
-        val (isoMdocZkProofFactory, zkSystem) = findFactory(zkSystems)
-        return isoMdocZkProofFactory.load(zkDocument, sessionTranscript, zkSystem)
+        val zkSystemId = zkDocument.zkDocumentDataBytes.value.zkSystemId
+        val selectedZkSystem = availableZkSystems.firstOrNull { it.zkSystemId == zkSystemId }
+            ?: throw PresentationException("Presentation contains invalid ZKSystemId: $zkSystemId")
+
+        val factory = requireNotNull(factories.firstOrNull { it.supports(selectedZkSystem) }) {
+            "No factory found for ZK system: $zkSystemId"
+        }
+
+        return factory.load(zkDocument, sessionTranscript, selectedZkSystem)
     }
 
 }

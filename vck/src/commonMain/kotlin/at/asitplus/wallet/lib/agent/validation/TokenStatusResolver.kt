@@ -20,7 +20,6 @@ import at.asitplus.wallet.lib.data.rfc.tokenStatusList.primitives.TokenStatus
 import at.asitplus.wallet.lib.extensions.toView
 import at.asitplus.wallet.lib.jws.VerifyJwsObject
 import at.asitplus.wallet.lib.jws.VerifyJwsObjectFun
-import io.ktor.util.*
 import kotlin.io.encoding.Base64
 import kotlin.jvm.JvmOverloads
 import kotlin.time.Clock

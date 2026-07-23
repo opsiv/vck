@@ -22,7 +22,6 @@ kotlin {
     if ("true" != disableAppleTargets) {
         iosArm64()
         iosSimulatorArm64()
-        iosX64()
         configureLongfellowIosLinking(isLongfellowZkModule = true)
     }
     sourceSets {

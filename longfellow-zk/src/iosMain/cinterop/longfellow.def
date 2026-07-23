@@ -1,0 +1,5 @@
+package = at.asitplus.iso.zk.longfellowZk.cinterop
+
+language = C
+
+headers = mdoc_zk.h

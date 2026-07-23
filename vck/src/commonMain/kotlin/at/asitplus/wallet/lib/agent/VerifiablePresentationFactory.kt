@@ -190,17 +190,13 @@ class VerifiablePresentationFactory(
             }
         }
 
-        val docType = schemeIdentifier
-            ?: issuerSigned.issuerAuth.payload?.docType
-            ?: resolveScheme().isoDocType
-            ?: throw PresentationException("Scheme not known or not registered")
         val deviceNameSpaceBytes = ByteStringWrapper(DeviceNameSpaces(mapOf()))
-        val input = IsoDeviceSignatureInput(docType, deviceNameSpaceBytes)
+        val input = IsoDeviceSignatureInput(schemeIdentifier, deviceNameSpaceBytes)
         val deviceSignature = request.calcIsoDeviceSignaturePlain(input)
             ?: throw PresentationException("calcIsoDeviceSignature not implemented")
 
         return Document(
-            docType = docType,
+            docType = schemeIdentifier,
             issuerSigned = IssuerSigned.fromIssuerSignedItems(
                 namespacedItems = disclosedItems,
                 issuerAuth = issuerSigned.issuerAuth

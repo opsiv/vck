@@ -4,9 +4,7 @@ import at.asitplus.jsonpath.core.NodeListEntry
 import at.asitplus.jsonpath.core.NormalizedJsonPath
 import at.asitplus.openid.dcql.DCQLClaimsQueryResult.IsoMdocResult
 import at.asitplus.openid.dcql.DCQLClaimsQueryResult.JsonResult
-import at.asitplus.openid.dcql.DCQLCredentialQueryMatchingResult.AllClaimsMatchingResult
-import at.asitplus.openid.dcql.DCQLCredentialQueryMatchingResult.AllMandatoryClaimsMatchingResult
-import at.asitplus.openid.dcql.DCQLCredentialQueryMatchingResult.ClaimsQueryResults
+import at.asitplus.openid.dcql.DCQLCredentialQueryMatchingResult.*
 import at.asitplus.signum.indispensable.CryptoSignature
 import at.asitplus.signum.indispensable.cosef.CoseAlgorithm
 import at.asitplus.signum.indispensable.cosef.CoseHeader
@@ -40,7 +38,6 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 import io.matthewnelson.encoding.core.Decoder.Companion.decodeToByteArray
 import io.matthewnelson.encoding.core.Encoder.Companion.encodeToString
 import kotlinx.coroutines.runBlocking
-import kotlin.random.Random
 import kotlinx.serialization.builtins.ByteArraySerializer
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -48,6 +45,7 @@ import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import kotlin.random.Random
 
 val VerifiablePresentationFactoryTest by matrixSuite {
 

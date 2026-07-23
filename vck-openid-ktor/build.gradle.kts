@@ -1,3 +1,4 @@
+import at.asitplus.gradle.VcLibVersions
 import at.asitplus.gradle.commonImplementationDependencies
 import at.asitplus.gradle.envExtra
 import at.asitplus.gradle.exportXCFramework

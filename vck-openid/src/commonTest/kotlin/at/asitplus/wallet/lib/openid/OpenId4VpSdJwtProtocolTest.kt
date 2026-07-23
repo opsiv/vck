@@ -8,15 +8,13 @@ import at.asitplus.wallet.eupidsdjwt.EuPidSdJwtDataElements
 import at.asitplus.wallet.lib.RequestOptionsCredential
 import at.asitplus.wallet.lib.agent.EphemeralKeyWithoutCert
 import at.asitplus.wallet.lib.agent.HolderAgent
-import at.asitplus.wallet.lib.agent.IssuerAgent
 import at.asitplus.wallet.lib.agent.RandomSource
 import at.asitplus.wallet.lib.agent.Verifier
-import at.asitplus.wallet.lib.agent.toStoreCredentialInput
 import at.asitplus.wallet.lib.data.AttributeIndex
 import at.asitplus.wallet.lib.data.ConstantIndex.AtomicAttribute2023
 import at.asitplus.wallet.lib.data.ConstantIndex.AtomicAttribute2023.CLAIM_GIVEN_NAME
 import at.asitplus.wallet.lib.data.ConstantIndex.CredentialRepresentation.SD_JWT
-import at.asitplus.wallet.lib.data.rfc3986.toUri
+import at.asitplus.wallet.lib.openid.DummyCredentialDataProvider.issueAndStoreSdJwt
 import com.benasher44.uuid.uuid4
 import io.kotest.matchers.collections.shouldBeIn
 import io.kotest.matchers.collections.shouldBeSingleton
@@ -33,28 +31,8 @@ val OpenId4VpSdJwtProtocolTest by matrixSuite {
             val euPidSdJwtScheme = AttributeIndex.resolveIdentifier(EU_PID_SD_JWT_VCT, SD_JWT)
             val holderKeyMaterial = EphemeralKeyWithoutCert()
             val holderAgent = HolderAgent(holderKeyMaterial).also {
-                it.storeCredential(
-                    IssuerAgent(
-                        identifier = "https://issuer.example.com/".toUri(),
-                        randomSource = RandomSource.Default
-                    ).issueCredential(
-                        DummyCredentialDataProvider.getCredential(
-                            holderKeyMaterial.publicKey,
-                            AtomicAttribute2023,
-                            SD_JWT
-                        )
-                            .getOrThrow()
-                    ).getOrThrow().toStoreCredentialInput()
-                )
-                it.storeCredential(
-                    IssuerAgent(
-                        identifier = "https://issuer.example.com/".toUri(),
-                        randomSource = RandomSource.Default
-                    ).issueCredential(
-                        DummyCredentialDataProvider.getCredential(holderKeyMaterial.publicKey, euPidSdJwtScheme, SD_JWT)
-                            .getOrThrow()
-                    ).getOrThrow().toStoreCredentialInput()
-                )
+                issueAndStoreSdJwt(it, holderKeyMaterial)
+                issueAndStoreSdJwt(it, holderKeyMaterial, euPidSdJwtScheme)
             }
             object {
                 val euPidSdJwtScheme = euPidSdJwtScheme

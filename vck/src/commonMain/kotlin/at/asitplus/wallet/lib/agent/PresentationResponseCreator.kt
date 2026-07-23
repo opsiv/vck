@@ -185,7 +185,7 @@ internal class PresentationResponseCreator(
                 fallbackFormatHolder = fallbackFormatHolder,
                 credentialClaimStructure = CredentialToJsonConverter.toJsonElement(credential),
                 credentialFormat = credential.credentialFormat,
-                credentialScheme = credential.schemeIdentifierForMatching,
+                credentialScheme = credential.schemeIdentifier,
                 pathAuthorizationValidator = { true },
             ).getOrThrow()
             val disclosedAttributes = submission.value.disclosedAttributes.map { it.toString() }

@@ -233,7 +233,7 @@ class HolderAgent @JvmOverloads constructor(
                         fallbackFormatHolder = fallbackFormatHolder,
                         credentialClaimStructure = CredentialToJsonConverter.toJsonElement(credential),
                         credentialFormat = credential.credentialFormat,
-                        credentialScheme = credential.schemeIdentifierForMatching,
+                        credentialScheme = credential.schemeIdentifier,
                         pathAuthorizationValidator = {
                             pathAuthorizationValidator?.invoke(credential, it) ?: true
                         },

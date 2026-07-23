@@ -11,12 +11,12 @@ import at.asitplus.wallet.lib.agent.EphemeralKeyWithoutCert
 import at.asitplus.wallet.lib.agent.HolderAgent
 import at.asitplus.wallet.lib.agent.IssuerAgent
 import at.asitplus.wallet.lib.agent.RandomSource
-import at.asitplus.wallet.lib.agent.toStoreCredentialInput
 import at.asitplus.wallet.lib.data.ConstantIndex.AtomicAttribute2023
 import at.asitplus.wallet.lib.data.ConstantIndex.AtomicAttribute2023.CLAIM_GIVEN_NAME
 import at.asitplus.wallet.lib.data.ConstantIndex.CredentialRepresentation.SD_JWT
 import at.asitplus.wallet.lib.data.rfc3986.toUri
 import at.asitplus.wallet.lib.oidvci.OAuth2Exception
+import at.asitplus.wallet.lib.openid.DummyCredentialDataProvider.issueAndStorePlainJwt
 import com.benasher44.uuid.uuid4
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.nulls.shouldNotBeNull
@@ -26,19 +26,12 @@ val JarmTest by matrixSuite {
     fixture {
         runBlocking {
             val holderKeyMaterial = EphemeralKeyWithoutCert()
+            val issuerAgent = IssuerAgent(
+                identifier = "https://issuer.example.com/".toUri(),
+                randomSource = RandomSource.Default
+            )
             val holderAgent = HolderAgent(holderKeyMaterial).also {
-                it.storeCredential(
-                    IssuerAgent(
-                        identifier = "https://issuer.example.com/".toUri(),
-                        randomSource = RandomSource.Default
-                    ).issueCredential(
-                        DummyCredentialDataProvider.getCredential(
-                            holderKeyMaterial.publicKey,
-                            AtomicAttribute2023,
-                            SD_JWT
-                        ).getOrThrow()
-                    ).getOrThrow().toStoreCredentialInput()
-                )
+                issueAndStorePlainJwt(it, holderKeyMaterial, issuerAgent)
             }
             object {
 

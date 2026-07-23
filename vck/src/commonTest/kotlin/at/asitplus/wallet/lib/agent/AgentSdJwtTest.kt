@@ -70,16 +70,7 @@ val AgentSdJwtTest by matrixSuite {
                 holderCredentialStore,
                 validatorSdJwt = validator,
             ).also {
-                it.storeCredential(
-                    issuer.issueCredential(
-                        DummyCredentialDataProvider.getCredential(
-                            holderKeyMaterial.publicKey,
-                            ConstantIndex.AtomicAttribute2023,
-                            SD_JWT,
-                        ).getOrThrow().shouldBeInstanceOf<CredentialToBeIssued.VcSd>()
-                            .copy(sdAlgorithm = Digest.SHA256)
-                    ).getOrThrow().toStoreCredentialInput()
-                ).getOrThrow()
+                DummyCredentialDataProvider.issueAndStoreSdJwt(it, holderKeyMaterial, issuer)
             }
             object {
                 val holder = holder
@@ -341,18 +332,12 @@ private fun buildDCQLQuery(vararg claimsQueries: DCQLJsonClaimsQuery) = DCQLQuer
 suspend fun createFreshSdJwtKeyBinding(challenge: String, verifierId: String): String {
     val holderKeyMaterial = EphemeralKeyWithoutCert()
     val holder = HolderAgent(holderKeyMaterial)
-    holder.storeCredential(
-        IssuerAgent(
-            identifier = "https://issuer.example.com/".toUri(),
-            randomSource = RandomSource.Default
-        ).issueCredential(
-            DummyCredentialDataProvider.getCredential(
-                holderKeyMaterial.publicKey,
-                ConstantIndex.AtomicAttribute2023,
-                SD_JWT,
-            ).getOrThrow()
-        ).getOrThrow().toStoreCredentialInput()
+    val issuer = IssuerAgent(
+        identifier = "https://issuer.example.com/".toUri(),
+        randomSource = RandomSource.Default
     )
+    DummyCredentialDataProvider.issueAndStoreSdJwt(holder, holderKeyMaterial, issuer)
+
     val presentationResult = holder.createDefaultPresentation(
         request = PresentationRequestParameters(nonce = challenge, audience = verifierId),
         credentialPresentationRequest = CredentialPresentationRequest.DCQLRequest(

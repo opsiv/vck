@@ -7,6 +7,8 @@ import at.asitplus.signum.indispensable.josef.io.joseCompliantSerializer
 import at.asitplus.signum.indispensable.josef.toJsonWebKey
 import at.asitplus.testballoon.matrix.fixture
 import at.asitplus.testballoon.matrix.matrixSuite
+import at.asitplus.wallet.lib.agent.DummyCredentialDataProvider.getCredential
+import at.asitplus.wallet.lib.agent.DummyCredentialDataProvider.issueSdJwt
 import at.asitplus.wallet.lib.agent.SdJwtCreator.toSdJsonObject
 import at.asitplus.wallet.lib.data.ConstantIndex
 import at.asitplus.wallet.lib.data.ConstantIndex.CredentialRepresentation.SD_JWT
@@ -48,11 +50,12 @@ val ValidatorSdJwtTest by matrixSuite {
                 randomSource = RandomSource.Default
             )
             val holderKeyMaterial = EphemeralKeyWithoutCert()
-            fun buildCredentialData(): CredentialToBeIssued.VcSd = DummyCredentialDataProvider.getCredential(
+            fun buildCredentialData() = getCredential(
                 holderKeyMaterial.publicKey,
                 ConstantIndex.AtomicAttribute2023,
                 SD_JWT,
-            ).getOrThrow().shouldBeInstanceOf<CredentialToBeIssued.VcSd>()
+            ).getOrThrow()
+                .shouldBeInstanceOf<CredentialToBeIssued.VcSd>()
 
 
             suspend fun issueVcSd(
@@ -114,7 +117,7 @@ val ValidatorSdJwtTest by matrixSuite {
     } - {
 
         test("credentials are valid for holder's key") {
-            val credential = it.issuer.issueCredential(it.buildCredentialData()).getOrThrow()
+            val credential = issueSdJwt(it.issuer, it.holderKeyMaterial)
                 .shouldBeInstanceOf<Issuer.IssuedCredential.VcSdJwt>().apply {
                     // Assert the issuanceOffset in IssuerAgent
                     sdJwtVc.issuedAt.shouldNotBeNull() shouldBeLessThan Clock.System.now().minus(1.minutes)
@@ -129,7 +132,7 @@ val ValidatorSdJwtTest by matrixSuite {
             val validator = ValidatorSdJwt(
                 verifyJwsObject = VerifyJwsObjectFun { KmmResult.failure(exception) }
             )
-            val credential = it.issuer.issueCredential(it.buildCredentialData()).getOrThrow()
+            val credential = issueSdJwt(it.issuer, it.holderKeyMaterial)
                 .shouldBeInstanceOf<Issuer.IssuedCredential.VcSdJwt>()
 
             validator.verifySdJwt(credential.signedSdJwtVc, it.holderKeyMaterial.publicKey)
@@ -137,7 +140,7 @@ val ValidatorSdJwtTest by matrixSuite {
         }
 
         test("credentials are not valid for some other key") {
-            val credential = it.issuer.issueCredential(it.buildCredentialData()).getOrThrow()
+            val credential = issueSdJwt(it.issuer, it.holderKeyMaterial)
                 .shouldBeInstanceOf<Issuer.IssuedCredential.VcSdJwt>()
 
             shouldThrowAny {

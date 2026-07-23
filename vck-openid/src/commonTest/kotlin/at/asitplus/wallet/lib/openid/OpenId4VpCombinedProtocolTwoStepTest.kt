@@ -8,15 +8,12 @@ import at.asitplus.signum.indispensable.josef.io.joseCompliantSerializer
 import at.asitplus.testballoon.matrix.fixture
 import at.asitplus.testballoon.matrix.matrixSuite
 import at.asitplus.wallet.lib.RequestOptionsCredential
-import at.asitplus.wallet.lib.agent.EphemeralKeyWithSelfSignedCert
 import at.asitplus.wallet.lib.agent.EphemeralKeyWithoutCert
 import at.asitplus.wallet.lib.agent.Holder
 import at.asitplus.wallet.lib.agent.HolderAgent
-import at.asitplus.wallet.lib.agent.IssuerAgent
 import at.asitplus.wallet.lib.agent.KeyMaterial
 import at.asitplus.wallet.lib.agent.RandomSource
 import at.asitplus.wallet.lib.agent.SubjectCredentialStore
-import at.asitplus.wallet.lib.agent.toStoreCredentialInput
 import at.asitplus.wallet.lib.data.ConstantIndex.AtomicAttribute2023
 import at.asitplus.wallet.lib.data.ConstantIndex.CredentialRepresentation.ISO_MDOC
 import at.asitplus.wallet.lib.data.ConstantIndex.CredentialRepresentation.SD_JWT
@@ -24,6 +21,10 @@ import at.asitplus.wallet.lib.data.CredentialPresentation.DCQLPresentation
 import at.asitplus.wallet.lib.data.CredentialPresentationRequest.DCQLRequest
 import at.asitplus.wallet.lib.data.CredentialScheme
 import at.asitplus.wallet.lib.data.rfc3986.toUri
+import at.asitplus.wallet.lib.data.CredentialPresentation.PresentationExchangePresentation
+import at.asitplus.wallet.lib.data.CredentialPresentationRequest.PresentationExchangeRequest
+import at.asitplus.wallet.lib.openid.DummyCredentialDataProvider.issueAndStoreIsoMdoc
+import at.asitplus.wallet.lib.openid.DummyCredentialDataProvider.issueAndStoreSdJwt
 import com.benasher44.uuid.uuid4
 import io.kotest.assertions.throwables.shouldNotThrowAny
 import io.kotest.matchers.collections.shouldBeSingleton
@@ -53,9 +54,9 @@ val OpenId4VpCombinedProtocolTwoStepTest by matrixSuite {
     } - {
 
         test("matching: only credentials of the correct format are matched") {
-            it.holderAgent.storeIsoCredential(it.holderKeyMaterial, AtomicAttribute2023)
-            it.holderAgent.storeIsoCredential(it.holderKeyMaterial, AtomicAttribute2023)
-            it.holderAgent.storeSdJwtCredential(it.holderKeyMaterial, AtomicAttribute2023)
+            issueAndStoreIsoMdoc(it.holderAgent, it.holderKeyMaterial, AtomicAttribute2023)
+            issueAndStoreIsoMdoc(it.holderAgent, it.holderKeyMaterial, AtomicAttribute2023)
+            issueAndStoreSdJwt(it.holderAgent, it.holderKeyMaterial, AtomicAttribute2023)
 
             val authnRequest = it.verifierOid4vp.createPlainAuthnRequest(
                 OpenId4VpRequestOptions(
@@ -86,9 +87,9 @@ val OpenId4VpCombinedProtocolTwoStepTest by matrixSuite {
         }
 
         test("submission requirements need to match: all credentials matching a credential query should be presentable") {
-            it.holderAgent.storeIsoCredential(it.holderKeyMaterial, AtomicAttribute2023)
-            it.holderAgent.storeIsoCredential(it.holderKeyMaterial, AtomicAttribute2023)
-            it.holderAgent.storeSdJwtCredential(it.holderKeyMaterial, AtomicAttribute2023)
+            issueAndStoreIsoMdoc(it.holderAgent, it.holderKeyMaterial, AtomicAttribute2023)
+            issueAndStoreIsoMdoc(it.holderAgent, it.holderKeyMaterial, AtomicAttribute2023)
+            issueAndStoreSdJwt(it.holderAgent, it.holderKeyMaterial, AtomicAttribute2023)
 
             val authnRequest = it.verifierOid4vp.createPlainAuthnRequest(
                 OpenId4VpRequestOptions(
@@ -130,7 +131,7 @@ val OpenId4VpCombinedProtocolTwoStepTest by matrixSuite {
         }
 
         test("submission requirements need to match: not all optional claims need to be presented") {
-            it.holderAgent.storeIsoCredential(it.holderKeyMaterial, AtomicAttribute2023)
+            issueAndStoreIsoMdoc(it.holderAgent, it.holderKeyMaterial, AtomicAttribute2023)
 
             val authnRequest = it.verifierOid4vp.createPlainAuthnRequest(
                 OpenId4VpRequestOptions(
@@ -190,10 +191,11 @@ val OpenId4VpCombinedProtocolTwoStepTest by matrixSuite {
             }
         }
 
+
         test("submission requirements need to match: credentials not matching a credential query should not yield a valid submission") {
-            it.holderAgent.storeIsoCredential(it.holderKeyMaterial, AtomicAttribute2023)
-            it.holderAgent.storeIsoCredential(it.holderKeyMaterial, AtomicAttribute2023)
-            it.holderAgent.storeSdJwtCredential(it.holderKeyMaterial, AtomicAttribute2023)
+            issueAndStoreIsoMdoc(it.holderAgent, it.holderKeyMaterial, AtomicAttribute2023)
+            issueAndStoreIsoMdoc(it.holderAgent, it.holderKeyMaterial, AtomicAttribute2023)
+            issueAndStoreSdJwt(it.holderAgent, it.holderKeyMaterial, AtomicAttribute2023)
 
             val sdJwtRequest = CredentialPresentationRequestBuilder(
                 RequestOptionsCredential(AtomicAttribute2023, SD_JWT)
@@ -246,38 +248,5 @@ val OpenId4VpCombinedProtocolTwoStepTest by matrixSuite {
         }
     }
 }
-
-private suspend fun Holder.storeSdJwtCredential(
-    holderKeyMaterial: KeyMaterial,
-    credentialScheme: CredentialScheme,
-) = storeCredential(
-    IssuerAgent(
-        identifier = "https://issuer.example.com/".toUri(),
-        randomSource = RandomSource.Default
-    ).issueCredential(
-        DummyCredentialDataProvider.getCredential(
-            holderKeyMaterial.publicKey,
-            credentialScheme,
-            SD_JWT,
-        ).getOrThrow()
-    ).getOrThrow().toStoreCredentialInput()
-)
-
-private suspend fun Holder.storeIsoCredential(
-    holderKeyMaterial: KeyMaterial,
-    credentialScheme: CredentialScheme,
-) = storeCredential(
-    IssuerAgent(
-        keyMaterial = EphemeralKeyWithSelfSignedCert(),
-        identifier = "https://issuer.example.com/".toUri(),
-        randomSource = RandomSource.Default
-    ).issueCredential(
-        DummyCredentialDataProvider.getCredential(
-            holderKeyMaterial.publicKey,
-            credentialScheme,
-            ISO_MDOC,
-        ).getOrThrow()
-    ).getOrThrow().toStoreCredentialInput()
-)
 
 private fun AuthenticationRequestParameters.serialize(): String = joseCompliantSerializer.encodeToString(this)

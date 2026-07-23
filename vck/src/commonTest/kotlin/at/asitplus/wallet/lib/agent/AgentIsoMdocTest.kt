@@ -22,6 +22,7 @@ import at.asitplus.signum.indispensable.cosef.CoseSigned
 import at.asitplus.signum.indispensable.cosef.io.ByteStringWrapper
 import at.asitplus.testballoon.matrix.fixture
 import at.asitplus.testballoon.matrix.matrixSuite
+import at.asitplus.wallet.lib.agent.DummyCredentialDataProvider.issueAndStoreIsoMdoc
 import at.asitplus.wallet.lib.agent.validation.TokenStatusResolverImpl
 import at.asitplus.wallet.lib.cbor.SignCose
 import at.asitplus.wallet.lib.data.ConstantIndex
@@ -306,16 +307,7 @@ private suspend fun createIsoMdocFixture(mode: IsoRevocationMode): IsoMdocFixtur
         holderCredentialStore,
         validatorMdoc = validator,
     ).also {
-        it.storeCredential(
-            issuer.issueCredential(
-                DummyCredentialDataProvider.getCredential(
-                    subjectPublicKey = holderKeyMaterial.publicKey,
-                    credentialScheme = ConstantIndex.AtomicAttribute2023,
-                    representation = ISO_MDOC,
-                    revocationKind = mode.revocationKind,
-                ).getOrThrow()
-            ).getOrThrow().toStoreCredentialInput()
-        ).getOrThrow()
+        issueAndStoreIsoMdoc(it, holderKeyMaterial, issuer, mode.revocationKind)
     }
     val verifierId = "urn:${uuid4()}"
 

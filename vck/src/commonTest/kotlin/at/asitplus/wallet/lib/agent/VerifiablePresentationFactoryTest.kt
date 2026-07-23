@@ -149,6 +149,7 @@ val VerifiablePresentationFactoryTest by matrixSuite {
                         claimValue = JsonPrimitive("Musterfrau"),
                     )
                 ),
+                schemeIdentifier = "unknown"
             )
 
             it.verifiablePresentationFactory.createVerifiablePresentation(
@@ -222,7 +223,7 @@ val VerifiablePresentationFactoryTest by matrixSuite {
         }
 
         "iso createVerifiablePresentation ignores attributes without namespace" {
-            val result = it.verifiablePresentationFactory.createVerifiablePresentation(
+            it.verifiablePresentationFactory.createVerifiablePresentation(
                 request = presentationRequest(),
                 credential = it.isoCredential,
                 disclosedAttributes = listOf(
@@ -248,7 +249,7 @@ val VerifiablePresentationFactoryTest by matrixSuite {
 
         "iso createVerifiablePresentation uses disclosedAttributes (dcql all claims)" {
             val namespace = ConstantIndex.AtomicAttribute2023.isoNamespace.shouldNotBeNull()
-            val result = it.verifiablePresentationFactory.createVerifiablePresentation(
+            it.verifiablePresentationFactory.createVerifiablePresentation(
                 request = presentationRequest(),
                 credential = it.isoCredential,
                 disclosedAttributes = AllClaimsMatchingResult,
@@ -274,7 +275,7 @@ val VerifiablePresentationFactoryTest by matrixSuite {
         "iso createVerifiablePresentation uses disclosedAttributes (dcql query results)" {
             val namespace = ConstantIndex.AtomicAttribute2023.isoNamespace.shouldNotBeNull()
 
-            val result = it.verifiablePresentationFactory.createVerifiablePresentation(
+            it.verifiablePresentationFactory.createVerifiablePresentation(
                 request = presentationRequest(),
                 credential = it.isoCredential,
                 disclosedAttributes = ClaimsQueryResults(

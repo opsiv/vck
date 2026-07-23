@@ -92,9 +92,7 @@ interface SubjectCredentialStore {
         val claimFormat: ClaimFormat
         val renewalInfo: CredentialRenewalInfo?
         val issuer: X509Certificate?
-
-        // has been added nullable to not break de-serializing existing store entries
-        val schemeIdentifier: String?
+        val schemeIdentifier: String
         suspend fun resolveScheme(): CredentialScheme
 
         @Serializable
@@ -107,14 +105,13 @@ interface SubjectCredentialStore {
             override val renewalInfo: CredentialRenewalInfo? = null,
             @Serializable(with = Base64X509CertificateSerializer::class)
             override val issuer: X509Certificate? = null,
-            /** See [VcJwtCredentialScheme.vcType] */
+            /** See [VcJwtCredentialScheme.vcType] or `vc.vc.type` */
             @SerialName("scheme-identifier")
-            override val schemeIdentifier: String? = null,
+            override val schemeIdentifier: String
         ) : StoreEntry {
 
             override suspend fun resolveScheme(): CredentialScheme =
-                schemeIdentifier?.let { AttributeIndex.resolveIdentifier(it, PLAIN_JWT) }
-                    ?: AttributeIndex.resolveIdentifierPlainJwt(vc.vc.type)
+                AttributeIndex.resolveIdentifier(schemeIdentifier, PLAIN_JWT)
 
             override val credentialFormat: CredentialFormatEnum = CredentialFormatEnum.JWT_VC
             override val claimFormat: ClaimFormat = ClaimFormat.JWT_VP
@@ -133,14 +130,13 @@ interface SubjectCredentialStore {
             override val renewalInfo: CredentialRenewalInfo? = null,
             @Serializable(with = Base64X509CertificateSerializer::class)
             override val issuer: X509Certificate? = null,
-            /** See [SdJwtCredentialScheme.sdJwtType] */
+            /** See [SdJwtCredentialScheme.sdJwtType] or `sdJwt.verifiableCredentialType` */
             @SerialName("scheme-identifier")
-            override val schemeIdentifier: String? = null,
+            override val schemeIdentifier: String
         ) : StoreEntry {
 
             override suspend fun resolveScheme(): CredentialScheme =
-                schemeIdentifier?.let { AttributeIndex.resolveIdentifier(it, SD_JWT) }
-                    ?: AttributeIndex.resolveIdentifier(sdJwt.verifiableCredentialType, SD_JWT)
+                AttributeIndex.resolveIdentifier(schemeIdentifier, SD_JWT)
 
             override val credentialFormat: CredentialFormatEnum = CredentialFormatEnum.DC_SD_JWT
             override val claimFormat: ClaimFormat = ClaimFormat.SD_JWT
@@ -154,22 +150,18 @@ interface SubjectCredentialStore {
             override val renewalInfo: CredentialRenewalInfo? = null,
             @Serializable(with = Base64X509CertificateSerializer::class)
             override val issuer: X509Certificate? = null,
-            /** See [IsoMdocCredentialScheme.isoDocType] */
+            /** See [IsoMdocCredentialScheme.isoDocType] or `issuerSigned.issuerAuth.payload.docType` */
             @SerialName("scheme-identifier")
-            override val schemeIdentifier: String? = null,
+            override val schemeIdentifier: String
         ) : StoreEntry {
 
             override suspend fun resolveScheme(): CredentialScheme =
-                schemeIdentifier?.let { AttributeIndex.resolveIdentifier(it, ISO_MDOC) }
-                    ?: issuerSigned.issuerAuth.payload?.docType?.let { AttributeIndex.resolveIdentifier(it, ISO_MDOC) }
-                    ?: issuerSigned.issuerAuth.payload?.docType?.let { IsoMdocFallbackCredentialScheme(it) }
-                    ?: UnknownCredentialScheme(ISO_MDOC)
+                AttributeIndex.resolveIdentifier(schemeIdentifier, ISO_MDOC)
 
             override val credentialFormat: CredentialFormatEnum = CredentialFormatEnum.MSO_MDOC
             override val claimFormat: ClaimFormat = ClaimFormat.MSO_MDOC
         }
 
-        @OptIn(ExperimentalStdlibApi::class)
         @Throws(IllegalArgumentException::class)
         fun getDcApiId(): String = when (this) {
             is Vc -> vc.jwtId

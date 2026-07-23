@@ -39,7 +39,6 @@ import at.asitplus.signum.indispensable.asn1.encoding.decode
 import at.asitplus.signum.indispensable.josef.JwsCompactTyped
 import at.asitplus.signum.indispensable.pki.X509Certificate
 import at.asitplus.wallet.lib.agent.SubjectCredentialStore
-import at.asitplus.wallet.lib.agent.Verifier
 import at.asitplus.wallet.lib.agent.Verifier.VerifyPresentationResult
 import at.asitplus.wallet.lib.data.CredentialToJsonConverter
 import at.asitplus.wallet.lib.data.VerifiableCredentialJws
@@ -168,7 +167,7 @@ value class DCQLQueryAdapter(val dcqlQuery: DCQLQuery) {
         authorityKeyIdentifiers = issuerSigned.issuerAuth.unprotectedHeader?.certificateChain?.flatMap {
             X509Certificate.decodeFromByteArray(it)?.getAuthorityKeyIdentifier() ?: listOf()
         } ?: listOf(),
-        documentType = schemeIdentifier ?: issuerSigned.issuerAuth.payload?.docType ?: resolveScheme().isoDocType!!
+        documentType = schemeIdentifier
     )
 
     private fun SubjectCredentialStore.StoreEntry.SdJwt.toDCQLCredential() = DCQLSdJwtCredential(

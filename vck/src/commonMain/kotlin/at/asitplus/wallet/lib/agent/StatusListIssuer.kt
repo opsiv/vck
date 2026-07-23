@@ -33,20 +33,6 @@ interface StatusListIssuer : StatusIssuer, StatusProvider {
      */
     fun revokeCredentialByIndex(timePeriod: Int, statusListIndex: Long): Boolean
 
-    @Deprecated(
-        "Use a Long statusListIndex",
-        ReplaceWith("revokeCredentialByIndex(timePeriod, statusListIndex.toLong())"),
-    )
-    fun revokeCredentialByIndex(timePeriod: Int, statusListIndex: ULong): Boolean =
-        revokeCredentialByIndex(
-            timePeriod = timePeriod,
-            statusListIndex = statusListIndex.toLong().also {
-                require(statusListIndex <= Long.MAX_VALUE.toULong()) {
-                    "statusListIndex must be at most Long.MAX_VALUE"
-                }
-            },
-        )
-
     /**
      * Sets the status of one specific credential to
      * [at.asitplus.wallet.lib.data.rfc.tokenStatusList.primitives.TokenStatus.Invalid].

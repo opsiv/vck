@@ -45,56 +45,59 @@ import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.kotest.matchers.types.shouldNotBeInstanceOf
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.jsonPrimitive
 import kotlin.time.Clock
 
 
 val AgentSdJwtTest by matrixSuite {
 
-    fixture({ kotlinx.coroutines.runBlocking {
-        val issuerCredentialStore = InMemoryIssuerCredentialStore()
-        val holderCredentialStore = InMemorySubjectCredentialStore()
-        val issuer = IssuerAgent(
-            issuerCredentialStore = issuerCredentialStore,
-            identifier = "https://issuer.example.com/".toUri(),
-            randomSource = RandomSource.Default
-        )
-        val holderKeyMaterial = EphemeralKeyWithSelfSignedCert()
-        val statusListIssuer = StatusListAgent(issuerCredentialStore = issuerCredentialStore)
-
-        val validator = ValidatorSdJwt(
-            validator = Validator(tokenStatusResolver = randomCwtOrJwtResolver(statusListIssuer))
-        )
-        val holder = HolderAgent(
-            holderKeyMaterial,
-            holderCredentialStore,
-            validatorSdJwt = validator,
-        ).also {
-            it.storeCredential(
-                issuer.issueCredential(
-                    DummyCredentialDataProvider.getCredential(
-                        holderKeyMaterial.publicKey,
-                        ConstantIndex.AtomicAttribute2023,
-                        SD_JWT,
-                    ).getOrThrow()
-                ).getOrThrow().toStoreCredentialInput()
-            ).getOrThrow()
-        }
-        object {
-            val holder = holder
-            val holderCredentialStore = holderCredentialStore
-            val holderKeyMaterial = holderKeyMaterial
-            val statusListIssuer = statusListIssuer
-            val verifierId = "urn:${uuid4()}"
-            val verifier = NonceChallengeVerifier(
-                verifierId = verifierId,
-                verifier = VerifierAgent(
-                    identifier = verifierId,
-                    validatorSdJwt = validator,
-                ),
+    fixture {
+        runBlocking {
+            val issuerCredentialStore = InMemoryIssuerCredentialStore()
+            val holderCredentialStore = InMemorySubjectCredentialStore()
+            val issuer = IssuerAgent(
+                issuerCredentialStore = issuerCredentialStore,
+                identifier = "https://issuer.example.com/".toUri(),
+                randomSource = RandomSource.Default
             )
+            val holderKeyMaterial = EphemeralKeyWithSelfSignedCert()
+            val statusListIssuer = StatusListAgent(issuerCredentialStore = issuerCredentialStore)
+
+            val validator = ValidatorSdJwt(
+                validator = Validator(tokenStatusResolver = randomCwtOrJwtResolver(statusListIssuer))
+            )
+            val holder = HolderAgent(
+                holderKeyMaterial,
+                holderCredentialStore,
+                validatorSdJwt = validator,
+            ).also {
+                it.storeCredential(
+                    issuer.issueCredential(
+                        DummyCredentialDataProvider.getCredential(
+                            holderKeyMaterial.publicKey,
+                            ConstantIndex.AtomicAttribute2023,
+                            SD_JWT,
+                        ).getOrThrow()
+                    ).getOrThrow().toStoreCredentialInput()
+                ).getOrThrow()
+            }
+            object {
+                val holder = holder
+                val holderCredentialStore = holderCredentialStore
+                val holderKeyMaterial = holderKeyMaterial
+                val statusListIssuer = statusListIssuer
+                val verifierId = "urn:${uuid4()}"
+                val verifier = NonceChallengeVerifier(
+                    verifierId = verifierId,
+                    verifier = VerifierAgent(
+                        identifier = verifierId,
+                        validatorSdJwt = validator,
+                    ),
+                )
+            }
         }
-    } }) - {
+    } - {
 
         "keyBindingJws contains more JWK attributes, still verifies" {
             val request = it.verifier.createPresentationRequest()

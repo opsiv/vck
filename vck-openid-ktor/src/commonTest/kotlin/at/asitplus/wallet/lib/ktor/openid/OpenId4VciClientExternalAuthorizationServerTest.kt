@@ -248,7 +248,6 @@ val OpenId4VciClientExternalAuthorizationServerTest by matrixSuite {
                             BuildClientAttestationJwt(
                                 SignJwt(EphemeralKeyWithSelfSignedCert(), JwsHeaderCertOrJwk()),
                                 clientId = issuerPublicContext,
-                                issuer = "issuer",
                                 clientKey = issuerClientAuthKeyMaterial.jsonWebKey
                             )
                         }
@@ -286,7 +285,6 @@ val OpenId4VciClientExternalAuthorizationServerTest by matrixSuite {
                             BuildClientAttestationJwt(
                                 SignJwt(EphemeralKeyWithSelfSignedCert(), JwsHeaderCertOrJwk()),
                                 clientId = walletClientId,
-                                issuer = "issuer",
                                 clientKey = walletClientAuthKeyMaterial.jsonWebKey
                             )
                         }

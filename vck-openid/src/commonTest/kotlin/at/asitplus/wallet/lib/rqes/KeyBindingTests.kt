@@ -62,7 +62,7 @@ private fun malignTransactionData(): List<TransactionDataBase64Url> = listOf(
 
 val KeyBindingTests by matrixSuite {
 
-    fixture({
+    fixture {
         runBlocking {
             val euPidSdJwtScheme = AttributeIndex.resolveIdentifier(EU_PID_SD_JWT_VCT, SD_JWT)
             val holderKeyMaterial: KeyMaterial = EphemeralKeyWithoutCert()
@@ -193,7 +193,7 @@ val KeyBindingTests by matrixSuite {
                 """.trimIndent()
             }
         }
-    }) - {
+    } - {
 
         "KB-JWT contains transaction data" {
             val verifierOid4Vp = OpenId4VpVerifier(

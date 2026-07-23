@@ -71,19 +71,4 @@ data class StatusListInfo(
         const val URI = "uri"
         const val STATUS_LIST_INFO = "status_list"
     }
-
-    companion object {
-        @Deprecated("Use the Long constructor", ReplaceWith("StatusListInfo(index.toLong(), uri, certificate)"))
-        operator fun invoke(
-            index: ULong,
-            uri: UniformResourceIdentifier,
-            certificate: ByteArray? = null,
-        ) = StatusListInfo(
-            index = index.toLong().also {
-                require(index <= Long.MAX_VALUE.toULong()) { "index must be at most Long.MAX_VALUE" }
-            },
-            uri = uri,
-            certificate = certificate,
-        )
-    }
 }

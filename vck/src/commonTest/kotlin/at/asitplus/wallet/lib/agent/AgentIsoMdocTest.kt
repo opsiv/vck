@@ -46,13 +46,14 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.kotest.matchers.types.shouldNotBeInstanceOf
+import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.LocalDate
 import kotlinx.serialization.builtins.ByteArraySerializer
 
 val AgentIsoMdocTest by matrixSuite {
 
     for (mode in IsoRevocationMode.entries) {
-        fixture({ kotlinx.coroutines.runBlocking { createIsoMdocFixture(mode) } }) - {
+        fixture { runBlocking { createIsoMdocFixture(mode) } } - {
             "presex: simple walk-through success${mode.testNameSuffix}" {
                 val vp = it.createPresexDeviceResponse(CLAIM_GIVEN_NAME, CLAIM_DATE_OF_BIRTH)
 

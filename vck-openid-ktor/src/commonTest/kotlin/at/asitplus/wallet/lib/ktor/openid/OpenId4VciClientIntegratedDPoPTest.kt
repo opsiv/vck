@@ -62,7 +62,7 @@ val OpenId4VciClientIntegratedDPoPTest by matrixSuite {
         val client: OpenId4VciClient,
     )
 
-    fixture({
+    fixture {
         runBlocking {
             val scheme = AttributeIndex.resolveIdentifier(EU_PID_SD_JWT_VCT, SD_JWT)
 
@@ -189,7 +189,6 @@ val OpenId4VciClientIntegratedDPoPTest by matrixSuite {
                                 BuildClientAttestationJwt(
                                     SignJwt(EphemeralKeyWithSelfSignedCert(), JwsHeaderCertOrJwk()),
                                     clientId = clientId,
-                                    issuer = "issuer",
                                     clientKey = clientAuthKeyMaterial.jsonWebKey
                                 )
                             }
@@ -201,7 +200,7 @@ val OpenId4VciClientIntegratedDPoPTest by matrixSuite {
                 )
             )
         }
-    }) - {
+    } - {
         test("loadEuPidCredentialSdJwt") { context ->
             var refreshTokenStore: CredentialRenewalInfo? = null
 

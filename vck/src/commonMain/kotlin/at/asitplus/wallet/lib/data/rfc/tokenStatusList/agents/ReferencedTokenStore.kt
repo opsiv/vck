@@ -20,22 +20,6 @@ interface ReferencedTokenStore {
         init {
             require(statusListIndex >= 0) { "statusListIndex must be non-negative" }
         }
-
-        companion object {
-            @Deprecated(
-                "Use the Long constructor",
-                ReplaceWith("StoredCredentialReference(id, timePeriod, statusListIndex.toLong())"),
-            )
-            operator fun invoke(id: String, timePeriod: Int, statusListIndex: ULong) = StoredCredentialReference(
-                id = id,
-                timePeriod = timePeriod,
-                statusListIndex = statusListIndex.toLong().also {
-                    require(statusListIndex <= Long.MAX_VALUE.toULong()) {
-                        "statusListIndex must be at most Long.MAX_VALUE"
-                    }
-                },
-            )
-        }
     }
 
     /**
@@ -62,16 +46,6 @@ interface ReferencedTokenStore {
      * Set the [status] of the referenced token with this [index] for the [timePeriod], if it exists.
      */
     fun setStatus(timePeriod: Int, index: Long, status: TokenStatus): Boolean
-
-    @Deprecated("Use a Long index", ReplaceWith("setStatus(timePeriod, index.toLong(), status)"))
-    fun setStatus(timePeriod: Int, index: ULong, status: TokenStatus): Boolean =
-        setStatus(
-            timePeriod = timePeriod,
-            index = index.toLong().also {
-                require(index <= Long.MAX_VALUE.toULong()) { "index must be at most Long.MAX_VALUE" }
-            },
-            status = status,
-        )
 
     /**
      * Set the status of the referenced token with this [identifier] for the [timePeriod] to revoked, if it exists.

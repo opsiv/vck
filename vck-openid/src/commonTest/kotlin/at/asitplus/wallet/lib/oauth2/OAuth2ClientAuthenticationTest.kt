@@ -30,57 +30,59 @@ import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.ktor.http.*
+import kotlinx.coroutines.runBlocking
 
 val OAuth2ClientAuthenticationTest by matrixSuite {
 
-    fixture({ kotlinx.coroutines.runBlocking {
-        val attesterBackend = SignJwt<JsonWebToken>(EphemeralKeyWithSelfSignedCert(), JwsHeaderCertOrJwk())
-        val clientKey = EphemeralKeyWithSelfSignedCert()
-        val client = OAuth2Client()
-        val clientAttestation = BuildClientAttestationJwt(
-            attesterBackend,
-            clientId = client.clientId,
-            issuer = "someissuer",
-            clientKey = clientKey.jsonWebKey
-        )
-
-        val signClientAttestationPop: SignJwtFun<JsonWebToken> = SignJwt(clientKey, JwsHeaderNone())
-        val clientAttestationPop = BuildClientAttestationPoPJwt(
-            signJwt = signClientAttestationPop,
-            clientId = client.clientId,
-            audience = "some server",
-            randomSource = RandomSource.Default
-        )
-
-        object {
-            val scope = randomString()
-            val client = client
-            var server = SimpleAuthorizationService(
-                strategy = DummyAuthorizationServiceStrategy(scope),
-                clientAuthenticationService = ClientAuthenticationService(
-                    enforceClientAuthentication = true,
-                )
+    fixture {
+        runBlocking {
+            val attesterBackend = SignJwt<JsonWebToken>(EphemeralKeyWithSelfSignedCert(), JwsHeaderCertOrJwk())
+            val clientKey = EphemeralKeyWithSelfSignedCert()
+            val client = OAuth2Client()
+            val clientAttestation = BuildClientAttestationJwt(
+                attesterBackend,
+                clientId = client.clientId,
+                clientKey = clientKey.jsonWebKey
             )
-            val clientKey = clientKey
-            var clientAttestation = clientAttestation
-            val clientAttestationPop = clientAttestationPop
 
-            suspend fun getToken(state: String, code: String): TokenResponseParameters = server.token(
-                request = client.createTokenRequestParameters(
-                    state = state,
-                    authorization = OAuth2Client.AuthorizationForToken.Code(code),
-                    scope = scope
-                ),
-                httpRequest = RequestInfo(
-                    url = "https://example.com/",
-                    method = HttpMethod.Post,
-                    dpop = null,
-                    clientAttestation = this.clientAttestation,
-                    clientAttestationPop = clientAttestationPop
+            val signClientAttestationPop: SignJwtFun<JsonWebToken> = SignJwt(clientKey, JwsHeaderNone())
+            val clientAttestationPop = BuildClientAttestationPoPJwt(
+                signJwt = signClientAttestationPop,
+                clientId = client.clientId,
+                audience = "some server",
+                randomSource = RandomSource.Default
+            )
+
+            object {
+                val scope = randomString()
+                val client = client
+                var server = SimpleAuthorizationService(
+                    strategy = DummyAuthorizationServiceStrategy(scope),
+                    clientAuthenticationService = ClientAuthenticationService(
+                        enforceClientAuthentication = true,
+                    )
                 )
-            ).getOrThrow()
+                val clientKey = clientKey
+                var clientAttestation = clientAttestation
+                val clientAttestationPop = clientAttestationPop
+
+                suspend fun getToken(state: String, code: String): TokenResponseParameters = server.token(
+                    request = client.createTokenRequestParameters(
+                        state = state,
+                        authorization = OAuth2Client.AuthorizationForToken.Code(code),
+                        scope = scope
+                    ),
+                    httpRequest = RequestInfo(
+                        url = "https://example.com/",
+                        method = HttpMethod.Post,
+                        dpop = null,
+                        clientAttestation = this.clientAttestation,
+                        clientAttestationPop = clientAttestationPop
+                    )
+                ).getOrThrow()
+            }
         }
-    } }) - {
+    } - {
 
         test("pushed authorization request") {
             it.clientAttestation.payload.issuer.shouldBeNull()
@@ -137,7 +139,6 @@ val OAuth2ClientAuthenticationTest by matrixSuite {
             it.clientAttestation = BuildClientAttestationJwt(
                 SignJwt(EphemeralKeyWithSelfSignedCert(), JwsHeaderCertOrJwk()),
                 clientId = "wrong client id",
-                issuer = "someissuer",
                 clientKey = it.clientKey.jsonWebKey
             )
 

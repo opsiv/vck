@@ -41,6 +41,7 @@ import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
+import kotlinx.coroutines.runBlocking
 
 
 val ValidatorVpTest by matrixSuite {
@@ -53,58 +54,60 @@ val ValidatorVpTest by matrixSuite {
         ),
     )
 
-    fixture({ kotlinx.coroutines.runBlocking {
-        val holderCredentialStore = InMemorySubjectCredentialStore()
-        val holderKeyMaterial = EphemeralKeyWithoutCert()
-        val issuerCredentialStore = InMemoryIssuerCredentialStore()
+    fixture {
+        runBlocking {
+            val holderCredentialStore = InMemorySubjectCredentialStore()
+            val holderKeyMaterial = EphemeralKeyWithoutCert()
+            val issuerCredentialStore = InMemoryIssuerCredentialStore()
 
-        val issuer = IssuerAgent(
-            issuerCredentialStore = issuerCredentialStore,
-            identifier = "https://issuer.example.com/".toUri(),
-            randomSource = RandomSource.Default
-        )
-
-        val statusListIssuer = StatusListAgent(issuerCredentialStore = issuerCredentialStore)
-
-        val validator = ValidatorVcJws(
-            validator = Validator(
-                tokenStatusResolver = randomCwtOrJwtResolver(statusListIssuer)
+            val issuer = IssuerAgent(
+                issuerCredentialStore = issuerCredentialStore,
+                identifier = "https://issuer.example.com/".toUri(),
+                randomSource = RandomSource.Default
             )
-        )
-        val holder = HolderAgent(
-            keyMaterial = holderKeyMaterial,
-            subjectCredentialStore = holderCredentialStore,
-            validatorVcJws = validator,
-        ).also {
-            it.storeCredential(
-                issuer.issueCredential(
-                    DummyCredentialDataProvider.getCredential(
-                        holderKeyMaterial.publicKey,
-                        ConstantIndex.AtomicAttribute2023,
-                        PLAIN_JWT,
-                    ).getOrThrow()
-                ).getOrThrow().toStoreCredentialInput()
-            ).getOrThrow()
-        }
-        object {
-            val issuer = issuer
-            val holderCredentialStore = holderCredentialStore
-            val issuerCredentialStore = issuerCredentialStore
-            val validator = validator
 
-            val holder = holder
-            val verifiablePresentationFactory = VerifiablePresentationFactory(holderKeyMaterial)
-            val holderSignVp = SignJwt<VerifiablePresentationJws>(holderKeyMaterial, JwsHeaderCertOrJwk())
-            val verifierId = "urn:${uuid4()}"
-            val verifier = NonceChallengeVerifier(
-                verifierId = verifierId,
-                verifier = VerifierAgent(
-                    identifier = verifierId,
-                    validatorVcJws = validator,
-                ),
+            val statusListIssuer = StatusListAgent(issuerCredentialStore = issuerCredentialStore)
+
+            val validator = ValidatorVcJws(
+                validator = Validator(
+                    tokenStatusResolver = randomCwtOrJwtResolver(statusListIssuer)
+                )
             )
+            val holder = HolderAgent(
+                keyMaterial = holderKeyMaterial,
+                subjectCredentialStore = holderCredentialStore,
+                validatorVcJws = validator,
+            ).also {
+                it.storeCredential(
+                    issuer.issueCredential(
+                        DummyCredentialDataProvider.getCredential(
+                            holderKeyMaterial.publicKey,
+                            ConstantIndex.AtomicAttribute2023,
+                            PLAIN_JWT,
+                        ).getOrThrow()
+                    ).getOrThrow().toStoreCredentialInput()
+                ).getOrThrow()
+            }
+            object {
+                val issuer = issuer
+                val holderCredentialStore = holderCredentialStore
+                val issuerCredentialStore = issuerCredentialStore
+                val validator = validator
+
+                val holder = holder
+                val verifiablePresentationFactory = VerifiablePresentationFactory(holderKeyMaterial)
+                val holderSignVp = SignJwt<VerifiablePresentationJws>(holderKeyMaterial, JwsHeaderCertOrJwk())
+                val verifierId = "urn:${uuid4()}"
+                val verifier = NonceChallengeVerifier(
+                    verifierId = verifierId,
+                    verifier = VerifierAgent(
+                        identifier = verifierId,
+                        validatorVcJws = validator,
+                    ),
+                )
+            }
         }
-    } }) - {
+    } - {
 
         "correct challenge in VP leads to Success" {
             val request = it.verifier.createPresentationRequest()

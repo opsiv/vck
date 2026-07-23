@@ -221,7 +221,7 @@ object AtomicAttribute2025 : CredentialScheme, IsoMdocCredentialScheme, SdJwtCre
     const val CLAIM_FAMILY_NAME = "family_name"
     const val CLAIM_DATE_OF_BIRTH = "date_of_birth"
     const val CLAIM_PORTRAIT = "portrait"
-    override val schemaUri: String = "https://wallet.a-sit.at/schemas/1.0.0/AtomicAttribute2025.json"
+    val schemaUri: String = "https://wallet.a-sit.at/schemas/1.0.0/AtomicAttribute2025.json"
     override val vcType: String = "AtomicAttribute2025"
     override val sdJwtType: String = "AtomicAttribute2025"
     override val isoNamespace: String = "at.a-sit.wallet.atomic-attribute-2025"

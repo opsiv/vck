@@ -46,14 +46,15 @@ import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.string.shouldStartWith
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.ktor.http.*
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.jsonPrimitive
 
 /**
  * Tests our OpenID4VP/SIOP implementation against POTENTIAL Piloting Definition Scope
  */
 val OpenId4VpInteropTest by matrixSuite {
-    fixture({
-        kotlinx.coroutines.runBlocking {
+    fixture {
+        runBlocking {
             var sdAlgorithm: Digest? = null
             val issuerKeyId = uuid4().toString()
             val issuerIdentifier = "https://issuer.example.com"
@@ -115,7 +116,7 @@ val OpenId4VpInteropTest by matrixSuite {
                 )
             }
         }
-    }) - {
+    } - {
 
         "process with cross-device flow with request_uri and pre-trusted" {
             val responseNonce = uuid4().toString()

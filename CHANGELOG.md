@@ -1,5 +1,9 @@
 # Changelog
 
+Release 8.0.0 (unreleased):
+ - Deprecations:
+   - Remove code deprecated in 7.0.0, e.g. various `Iso180137AnnexC*` and related classes
+
 Release 7.0.0:
 - Credential definitions:
     - Move `CredentialScheme` out of `ConstantIndex`

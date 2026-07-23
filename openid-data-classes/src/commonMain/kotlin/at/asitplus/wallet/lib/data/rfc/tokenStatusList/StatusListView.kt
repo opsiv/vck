@@ -22,14 +22,6 @@ data class StatusListView(
     operator fun get(index: Long) = getOrNull(index)
         ?: throw IndexOutOfBoundsException("Index $index is out of bounds, size ${uncompressed.size.toLong() * Byte.SIZE_BITS / statusBitSize.value.toLong()}")
 
-    @Deprecated("Use a Long index", ReplaceWith("get(index.toLong())"))
-    operator fun get(index: UInt) = get(index.toLong())
-
-    @Deprecated("Use a Long index", ReplaceWith("get(index.toLong())"))
-    operator fun get(index: ULong) = get(index.toLong().also {
-        require(index <= Long.MAX_VALUE.toULong()) { "index must be at most Long.MAX_VALUE" }
-    })
-
     fun getOrNull(index: Long): TokenStatus? {
         require(index >= 0) { "index must be non-negative" }
         val tokenStatusesPerByte = Byte.SIZE_BITS.toLong() / statusBitSize.value.toLong()
@@ -55,11 +47,6 @@ data class StatusListView(
 
         return TokenStatus(tokenStatusByte)
     }
-
-    @Deprecated("Use a Long index", ReplaceWith("getOrNull(index.toLong())"))
-    fun getOrNull(index: ULong) = getOrNull(index.toLong().also {
-        require(index <= Long.MAX_VALUE.toULong()) { "index must be at most Long.MAX_VALUE" }
-    })
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

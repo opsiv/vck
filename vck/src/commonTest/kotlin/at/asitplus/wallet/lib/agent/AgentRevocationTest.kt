@@ -45,6 +45,7 @@ import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.string.shouldNotContain
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.matthewnelson.encoding.core.Encoder.Companion.encodeToString
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlin.random.Random
 import kotlin.time.Clock
@@ -52,22 +53,24 @@ import kotlin.time.Duration.Companion.seconds
 
 val AgentRevocationTest by matrixSuite {
 
-    fixture({ kotlinx.coroutines.runBlocking {
-        val issuerCredentialStore = InMemoryIssuerCredentialStore()
-        val expectedRevokedIndexes = issuerCredentialStore.revokeRandomCredentials()
-        object {
-            val issuerCredentialStore = issuerCredentialStore
-            val expectedRevokedIndexes = expectedRevokedIndexes
-            val issuer = IssuerAgent(
-                issuerCredentialStore = issuerCredentialStore,
-                identifier = "https://issuer.example.com/".toUri(),
-                randomSource = RandomSource.Default
-            )
-            val statusListIssuer = StatusListAgent(issuerCredentialStore = issuerCredentialStore)
-            val verifierKeyMaterial = EphemeralKeyWithoutCert()
+    fixture {
+        runBlocking {
+            val issuerCredentialStore = InMemoryIssuerCredentialStore()
+            val expectedRevokedIndexes = issuerCredentialStore.revokeRandomCredentials()
+            object {
+                val issuerCredentialStore = issuerCredentialStore
+                val expectedRevokedIndexes = expectedRevokedIndexes
+                val issuer = IssuerAgent(
+                    issuerCredentialStore = issuerCredentialStore,
+                    identifier = "https://issuer.example.com/".toUri(),
+                    randomSource = RandomSource.Default
+                )
+                val statusListIssuer = StatusListAgent(issuerCredentialStore = issuerCredentialStore)
+                val verifierKeyMaterial = EphemeralKeyWithoutCert()
 
+            }
         }
-    } }) - {
+    } - {
 
         "revocation list should contain indices of revoked credential" {
             val statusList = it.statusListIssuer.issueStatusListJwt()

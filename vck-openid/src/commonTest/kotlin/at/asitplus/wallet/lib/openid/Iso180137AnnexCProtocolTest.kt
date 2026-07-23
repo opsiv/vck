@@ -52,6 +52,7 @@ import io.kotest.matchers.collections.shouldBeSingleton
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
+import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.LocalDate
 import kotlinx.serialization.builtins.ByteArraySerializer
 import kotlinx.serialization.encodeToByteArray
@@ -74,8 +75,8 @@ val Iso180137AnnexCProtocolTest by matrixSuite {
     )
     val dcqlRequest = CredentialPresentationRequestBuilder(requestedCredential).toDCQLRequest()!!
 
-    fixture({
-        kotlinx.coroutines.runBlocking {
+    fixture {
+        runBlocking {
             val holderKeyMaterial: KeyMaterial = EphemeralKeyWithoutCert()
             val holderAgent = HolderAgent(holderKeyMaterial).also { agent ->
                 agent.storeCredential(
@@ -125,7 +126,7 @@ val Iso180137AnnexCProtocolTest by matrixSuite {
                 ) = createWalletResponse(holderAgent, holderKeyMaterial, isoMdocRequest, origin, requestedCredential)
             }
         }
-    }) - {
+    } - {
 
         test("createAuthnRequest renders device request and encryption info, and remembers the request") { f ->
             val transactionId = uuid4().toString()

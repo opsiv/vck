@@ -28,7 +28,7 @@ import kotlinx.coroutines.runBlocking
 
 val OpenId4VpSdJwtProtocolTest by matrixSuite {
 
-    fixture({
+    fixture {
         runBlocking {
             val euPidSdJwtScheme = AttributeIndex.resolveIdentifier(EU_PID_SD_JWT_VCT, SD_JWT)
             val holderKeyMaterial = EphemeralKeyWithoutCert()
@@ -72,7 +72,7 @@ val OpenId4VpSdJwtProtocolTest by matrixSuite {
                 )
             }
         }
-    }) - {
+    } - {
 
         "Selective Disclosure with custom credential" {
             val requestedClaim = CLAIM_GIVEN_NAME

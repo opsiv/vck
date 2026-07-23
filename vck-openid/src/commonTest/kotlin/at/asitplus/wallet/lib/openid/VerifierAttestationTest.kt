@@ -45,14 +45,15 @@ import io.kotest.matchers.collections.shouldBeSingleton
 import io.kotest.matchers.collections.shouldNotBeEmpty
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.types.shouldBeInstanceOf
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonElement
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.seconds
 
 val VerifierAttestationTest by matrixSuite {
 
-    fixture({
-        kotlinx.coroutines.runBlocking {
+    fixture {
+        runBlocking {
             val holderKeyMaterial: KeyMaterial = EphemeralKeyWithoutCert()
             val holderAgent: Holder = HolderAgent(holderKeyMaterial).also { agent ->
                 agent.storeCredential(
@@ -81,7 +82,7 @@ val VerifierAttestationTest by matrixSuite {
                 )
             }
         }
-    }) - {
+    } - {
 
         "test with request object and Attestation JWT" {
             val sprsKeyMaterial = EphemeralKeyWithoutCert()

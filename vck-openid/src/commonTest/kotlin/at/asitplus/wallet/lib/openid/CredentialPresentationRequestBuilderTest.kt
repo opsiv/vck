@@ -29,7 +29,6 @@ val CredentialPresentationRequestBuilderTest by matrixSuite {
     test("invalid credential scheme for SD-JWT should not throw when creating query") {
         val credential = RequestOptionsCredential(
             credentialScheme = object : CredentialScheme {
-                override val schemaUri: String = "https://example.com"
             },
             representation = SD_JWT
         )
@@ -43,7 +42,6 @@ val CredentialPresentationRequestBuilderTest by matrixSuite {
     test("invalid credential scheme for ISO should not throw when creating query") {
         val credential = RequestOptionsCredential(
             credentialScheme = object : CredentialScheme {
-                override val schemaUri: String = "https://example.com"
             },
             representation = ISO_MDOC
         )

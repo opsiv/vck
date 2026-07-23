@@ -62,16 +62,10 @@ class IssuerAgent @JvmOverloads constructor(
     /** Key material used to sign credentials in [signIssuedVc], [signIssuedSdJwt], [signMobileSecurityObject]. */
     override val keyMaterial: KeyMaterial = EphemeralKeyWithoutCert(),
     private val issuerCredentialStore: IssuerCredentialStore = InMemoryIssuerCredentialStore(),
-    @Suppress("unused") @Deprecated("Set value for statusListAgent instead")
-    private val statusListBaseUrl: String = "https://wallet.a-sit.at/backend/credentials/status",
-    @Suppress("unused") @Deprecated("Set value for statusListAgent instead")
-    private val identifierListBaseUrl: String = "https://wallet.a-sit.at/backend/credentials/identifier",
     private val clock: Clock = Clock.System,
     /** Time to adjust the [Clock.now] for issuance date of credentials. */
     private val issuanceOffset: Duration = (-3).minutes,
     override val cryptoAlgorithms: Set<SignatureAlgorithm> = setOf(keyMaterial.signatureAlgorithm),
-    @Suppress("unused") @Deprecated("Set value for statusListAgent instead")
-    private val timePeriodProvider: TimePeriodProvider = FixedTimePeriodProvider,
     /** The identifier used in `issuer` properties of credentials (JWT VC and SD JWT). */
     private val identifier: UniformResourceIdentifier,
     private val signIssuedSdJwt: SignJwtExtFun<JsonObject> =

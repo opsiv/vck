@@ -65,7 +65,7 @@ private fun AuthenticationRequestParameters.serialize(): String = joseCompliantS
 
 val OpenId4VpCombinedProtocolTest by matrixSuite {
 
-    fixture({
+    fixture {
         runBlocking {
             val mdlScheme = AttributeIndex.resolveIdentifier(MDL_DOCTYPE, ISO_MDOC)
             val euPidSdJwtScheme = AttributeIndex.resolveIdentifier(EU_PID_SD_JWT_VCT, SD_JWT)
@@ -87,7 +87,7 @@ val OpenId4VpCombinedProtocolTest by matrixSuite {
                 )
             }
         }
-    }) - {
+    } - {
         test("plain jwt: if not available despite others with correct format or correct attribute, but not both") {
             it.holderAgent.storeJwtCredential(it.holderKeyMaterial, it.mdlScheme)
             it.holderAgent.storeSdJwtCredential(it.holderKeyMaterial, ConstantIndex.AtomicAttribute2023)

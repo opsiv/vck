@@ -91,6 +91,7 @@ internal class PresentationResponseCreator(
                         request = request,
                         credential = credential,
                         disclosedAttributes = it.matchingResult,
+                        presentationConstraints = PresentationConstraints.None
                     ).getOrThrow()
                 }
             }

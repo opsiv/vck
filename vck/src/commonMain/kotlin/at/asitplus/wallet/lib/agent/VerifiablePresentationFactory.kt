@@ -64,13 +64,6 @@ class VerifiablePresentationFactory(
         SignJwt(keyMaterial, JwsHeaderNone()),
 ) {
 
-    suspend fun createVerifiablePresentation(
-        request: PresentationRequestParameters,
-        credentialAndDisclosedAttributes: Map<StoreEntry.Iso, Collection<NormalizedJsonPath>>,
-    ): KmmResult<CreatePresentationResult.DeviceResponse> = createVerifiablePresentation(
-        request = request,
-        credentialAndDisclosedAttributes = credentialAndDisclosedAttributes.entries.map { it.key to it.value },
-    )
 
     /**
      * Creates one Device Response while preserving every selected document and its order. A collection is used rather
@@ -78,11 +71,11 @@ class VerifiablePresentationFactory(
      */
     suspend fun createVerifiablePresentation(
         request: PresentationRequestParameters,
-        credentialAndDisclosedAttributes: Collection<Pair<StoreEntry.Iso, Collection<NormalizedJsonPath>>>,
+        isoPresentations: Collection<IsoPresentation>,
     ): KmmResult<CreatePresentationResult.DeviceResponse> = catching {
         createIsoPresentation(
             request = request,
-            credentialAndRequestedClaims = credentialAndDisclosedAttributes,
+            isoPresentation = isoPresentations,
         )
     }
 
@@ -105,7 +98,7 @@ class VerifiablePresentationFactory(
 
             is StoreEntry.Iso -> createIsoPresentation(
                 request = request,
-                credentialAndRequestedClaims = listOf(credential to disclosedAttributes),
+                isoPresentation = listOf(IsoPresentation(credential, disclosedAttributes,)),
             )
         }
     }
@@ -114,6 +107,7 @@ class VerifiablePresentationFactory(
         request: PresentationRequestParameters,
         credential: StoreEntry,
         disclosedAttributes: DCQLCredentialQueryMatchingResult,
+        presentationMetadata: PresentationMetadata? = null
     ): KmmResult<CreatePresentationResult> = catching {
         when (credential) {
             is StoreEntry.Vc -> if (disclosedAttributes !is AllClaimsMatchingResult) {
@@ -131,8 +125,8 @@ class VerifiablePresentationFactory(
 
             is StoreEntry.Iso -> createIsoPresentation(
                 request = request,
-                credentialAndRequestedClaims = listOf(
-                    credential to disclosedAttributes.toRequestedIsoClaims(credential)
+                isoPresentation = listOf(IsoPresentation(
+                    credential, disclosedAttributes.toRequestedIsoClaims(credential))
                 ),
             )
         }
@@ -176,11 +170,11 @@ class VerifiablePresentationFactory(
 
     private suspend fun createIsoPresentation(
         request: PresentationRequestParameters,
-        credentialAndRequestedClaims: Collection<Pair<StoreEntry.Iso, Collection<NormalizedJsonPath>>>,
+        isoPresentation: Collection<IsoPresentation>,
     ) = CreatePresentationResult.DeviceResponse(
         deviceResponse = DeviceResponse(
             parsedVersion = Version(1, 0),
-            documents = credentialAndRequestedClaims.map { (credential, requestedClaims) ->
+            documents = isoPresentation.map { (credential, requestedClaims) ->
                 credential.discloseRequestedClaims(requestedClaims, request)
             }.toTypedArray(),
             status = 0U,

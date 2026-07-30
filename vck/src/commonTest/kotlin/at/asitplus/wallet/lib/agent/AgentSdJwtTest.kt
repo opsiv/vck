@@ -70,7 +70,16 @@ val AgentSdJwtTest by matrixSuite {
                 holderCredentialStore,
                 validatorSdJwt = validator,
             ).also {
-                DummyCredentialDataProvider.issueAndStoreSdJwt(it, holderKeyMaterial, issuer)
+                it.storeCredential(
+                    issuer.issueCredential(
+                        DummyCredentialDataProvider.getCredential(
+                            holderKeyMaterial.publicKey,
+                            ConstantIndex.AtomicAttribute2023,
+                            SD_JWT,
+                        ).getOrThrow().shouldBeInstanceOf<CredentialToBeIssued.VcSd>()
+                            .copy(sdAlgorithm = Digest.SHA256)
+                    ).getOrThrow().toStoreCredentialInput()
+                ).getOrThrow()
             }
             object {
                 val holder = holder

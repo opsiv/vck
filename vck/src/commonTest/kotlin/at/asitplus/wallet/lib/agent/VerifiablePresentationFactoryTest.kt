@@ -1,5 +1,6 @@
 package at.asitplus.wallet.lib.agent
 
+import at.asitplus.iso.SessionTranscript
 import at.asitplus.jsonpath.core.NodeListEntry
 import at.asitplus.jsonpath.core.NormalizedJsonPath
 import at.asitplus.openid.dcql.DCQLClaimsQueryResult.IsoMdocResult
@@ -315,18 +316,17 @@ val VerifiablePresentationFactoryTest by matrixSuite {
     }
 }
 
+private val simpleTranscriptCallback: () -> SessionTranscript = {
+    SessionTranscript.forQr(
+        deviceEngagementBytes = byteArrayOf(),
+        eReaderKeyBytes = byteArrayOf(),
+    )
+}
+
 private fun presentationRequest() = PresentationRequestParameters(
     nonce = uuid4().toString(),
     audience = "https://verifier.example.org",
-    calcIsoDeviceSignaturePlain = {
-        CoseSigned.create(
-            CoseHeader(algorithm = CoseAlgorithm.Signature.RS256),
-            null,
-            byteArrayOf(),
-            CryptoSignature.RSA(byteArrayOf()),
-            ByteArraySerializer(),
-        )
-    }
+    calcIsoSessionTranscript = simpleTranscriptCallback
 )
 
 private fun CreatePresentationResult.SdJwt.disclosedClaimNames(): Set<String> =

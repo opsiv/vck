@@ -72,24 +72,6 @@ object IsoMdocDcapiResponseBuilder {
                     ?.encodeToString(Base64UrlStrict) ?: throw IllegalArgumentException("no nonce"),
                 audience = callingOrigin,
                 calcIsoSessionTranscript = calcSessionTranscript,
-                calcIsoDeviceSignaturePlain = { input ->
-                    val deviceAuthentication = DeviceAuthentication(
-                        type = DeviceAuthentication.TYPE,
-                        sessionTranscript = calcSessionTranscript(),
-                        docType = input.docType,
-                        namespaces = input.deviceNameSpaceBytes
-                    )
-
-                    val deviceAuthenticationBytes = coseCompliantSerializer
-                        .encodeToByteArray(ByteStringWrapper(deviceAuthentication))
-                        .wrapInCborTag(24)
-                    Napier.d("Device authentication signature input is ${deviceAuthenticationBytes.toHexString()}")
-                    signDeviceAuthDetached(null, null, deviceAuthenticationBytes, ByteArraySerializer())
-                        .getOrElse { e ->
-                            Napier.w("Could not create DeviceAuth for presentation", e)
-                            throw PresentationException(e)
-                        }
-                },
                 returnOneDeviceResponse = true,
             ),
             credentialPresentation = credentialPresentation,

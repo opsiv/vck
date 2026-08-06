@@ -1,8 +1,10 @@
 package at.asitplus.wallet.lib.agent
 
 import at.asitplus.dif.PresentationSubmission
+import at.asitplus.iso.DeviceAuthentication
 import at.asitplus.iso.DeviceNameSpaces
 import at.asitplus.iso.SessionTranscript
+import at.asitplus.iso.wrapInCborTag
 import at.asitplus.jsonpath.core.NormalizedJsonPath
 import at.asitplus.openid.TransactionDataBase64Url
 import at.asitplus.openid.dcql.DCQLCredentialQueryIdentifier
@@ -12,10 +14,13 @@ import at.asitplus.signum.indispensable.cosef.io.ByteStringWrapper
 import at.asitplus.signum.indispensable.cosef.io.coseCompliantSerializer
 import at.asitplus.signum.indispensable.io.Base64UrlStrict
 import at.asitplus.signum.indispensable.josef.JwsCompactTyped
+import at.asitplus.wallet.lib.cbor.SignCoseDetachedFun
 import at.asitplus.wallet.lib.data.VerifiablePresentationJws
 import at.asitplus.wallet.lib.jws.SdJwtSigned
+import io.github.aakira.napier.Napier
 import io.matthewnelson.encoding.core.Encoder.Companion.encodeToString
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.ByteArraySerializer
 import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
@@ -34,11 +39,6 @@ data class PresentationRequestParameters(
     val nonce: String,
     val audience: String,
     val transactionData: List<TransactionDataBase64Url>? = null,
-    /**
-     * Handle calculating device signature for ISO mDocs, as this depends on the transport protocol
-     * (OpenID4VP with ISO/IEC 18013-7)
-     */
-    val calcIsoDeviceSignaturePlain: (suspend (input: IsoDeviceSignatureInput) -> CoseSigned<ByteArray>?) = { null },
     @Deprecated(
         "Only applies to deprecated Presentation Exchange. DCQL uses `DCQLCredentialQuery.multiple`; " +
                 "ISO Device Retrieval always creates one DeviceResponse."
@@ -57,6 +57,31 @@ data class PresentationRequestParameters(
                 "This is required for ISO mDoc presentations.")
     },
 ) {
+    /**
+     * Handle calculating device signature for ISO mDocs, as this depends on the transport protocol
+     * (OpenID4VP with ISO/IEC 18013-7)
+     */
+    suspend fun calcIsoDeviceSignature(
+        signDeviceAuthDetached: SignCoseDetachedFun<ByteArray>,
+        input: IsoDeviceSignatureInput,
+    ): CoseSigned<ByteArray> {
+        val deviceAuthentication = DeviceAuthentication(
+            type = DeviceAuthentication.TYPE,
+            sessionTranscript = calcIsoSessionTranscript(),
+            docType = input.docType,
+            namespaces = input.deviceNameSpaceBytes
+        )
+        val deviceAuthenticationBytes = coseCompliantSerializer
+            .encodeToByteArray(ByteStringWrapper(deviceAuthentication))
+            .wrapInCborTag(24)
+        Napier.d("Device authentication signature input is ${deviceAuthenticationBytes.toHexString()}")
+        return signDeviceAuthDetached(null, null, deviceAuthenticationBytes, ByteArraySerializer())
+            .getOrElse { e ->
+                Napier.w("Could not create DeviceAuth for presentation", e)
+                throw PresentationException(e)
+            }
+    }
+
     /**
      * According to OID4VP 1.0 B3.3.1 every TransactionData entry may define different Digest algorithms
      * however in the [at.asitplus.wallet.lib.data.KeyBindingJws] we are only allowed to specify one.

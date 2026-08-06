@@ -11,6 +11,7 @@ import at.asitplus.iso.Document
 import at.asitplus.iso.ItemsRequest
 import at.asitplus.iso.ItemsRequestList
 import at.asitplus.iso.MobileSecurityObject
+import at.asitplus.iso.SessionTranscript
 import at.asitplus.iso.SingleItemsRequest
 import at.asitplus.jsonpath.core.NormalizedJsonPath
 import at.asitplus.jsonpath.core.NormalizedJsonPathSegment.NameSegment
@@ -105,13 +106,12 @@ val AgentIsoMdocMultipleDocumentsTest by matrixSuite {
                     validatorMdoc = validator,
                 ),
             )
-            val signer = SignCose<ByteArray>(keyMaterial = holderKeyMaterial)
         }
     } - {
 
         test("dcql: multiple credentials should be multiple device responses for remote presentation") { scope ->
             val request = scope.verifier.createPresentationRequest(
-                calcIsoDeviceSignaturePlain = simpleSigner(scope.signer),
+                calcIsoSessionTranscript = simpleTranscriptCallback
             )
             val presentationRequest = CredentialPresentationRequest.DCQLRequest(
                 DCQLQuery(
@@ -168,7 +168,7 @@ val AgentIsoMdocMultipleDocumentsTest by matrixSuite {
 
             val result = scope.holder.createPresentation(
                 request = scope.verifier.createPresentationRequest(
-                    calcIsoDeviceSignaturePlain = simpleSigner(scope.signer),
+                    calcIsoSessionTranscript = simpleTranscriptCallback,
                     returnOneDeviceResponse = true,
                 ),
                 credentialPresentation = PresentationExchangePresentation(presentationRequest),
@@ -182,7 +182,7 @@ val AgentIsoMdocMultipleDocumentsTest by matrixSuite {
         test("device retrieval: multiple document requests produce one device response") {
             val result = it.holder.createDefaultPresentation(
                 request = it.verifier.createPresentationRequest(
-                    calcIsoDeviceSignaturePlain = simpleSigner(it.signer),
+                    calcIsoSessionTranscript = simpleTranscriptCallback,
                 ),
                 credentialPresentationRequest = CredentialPresentationRequest.IsoDeviceRetrieval(
                     DeviceRequest(
@@ -252,15 +252,11 @@ private fun isoMdocCredentialQuery(
     ),
 )
 
-private fun simpleSigner(
-    signer: SignCose<ByteArray>
-): suspend (IsoDeviceSignatureInput) -> CoseSigned<ByteArray>? = { input ->
-    signer(
-        protectedHeader = null,
-        unprotectedHeader = null,
-        payload = input.docType.encodeToByteArray(),
-        serializer = ByteArraySerializer()
-    ).getOrThrow()
+private val simpleTranscriptCallback: () -> SessionTranscript = {
+    SessionTranscript.forQr(
+        deviceEngagementBytes = byteArrayOf(),
+        eReaderKeyBytes = byteArrayOf(),
+    )
 }
 
 // No OpenID4VP, no need to verify the device signature

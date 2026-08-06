@@ -305,30 +305,12 @@ private suspend fun createWalletResponse(
             ).sha256(),
         )
     )
-    val signer = SignCoseDetached<ByteArray>(keyMaterial = holderKeyMaterial)
     val calcIsoSessionTranscript = { sessionTranscript }
     val deviceResponse = holder.createDefaultPresentation(
         request = PresentationRequestParameters(
             nonce = uuid4().toString(), // not relevant for mdoc device authentication
             audience = origin,
             calcIsoSessionTranscript = calcIsoSessionTranscript,
-            calcIsoDeviceSignaturePlain = { input ->
-                signer(
-                    protectedHeader = null,
-                    unprotectedHeader = null,
-                    payload = coseCompliantSerializer.encodeToByteArray(
-                        ByteStringWrapper(
-                            DeviceAuthentication(
-                                type = DeviceAuthentication.TYPE,
-                                sessionTranscript = calcIsoSessionTranscript(),
-                                docType = input.docType,
-                                namespaces = input.deviceNameSpaceBytes,
-                            )
-                        )
-                    ).wrapInCborTag(24),
-                    serializer = ByteArraySerializer(),
-                ).getOrThrow()
-            }
         ),
         credentialPresentationRequest = CredentialPresentationRequestBuilder(requestedCredential).toDCQLRequest()!!,
     ).getOrThrow()

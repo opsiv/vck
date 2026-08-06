@@ -36,6 +36,8 @@ import at.asitplus.signum.indispensable.josef.JwsCompact
 import at.asitplus.signum.indispensable.josef.JwsCompactTyped
 import at.asitplus.signum.supreme.hash.digest
 import at.asitplus.wallet.lib.agent.SubjectCredentialStore.StoreEntry
+import at.asitplus.wallet.lib.cbor.CoseHeaderNone
+import at.asitplus.wallet.lib.cbor.SignCoseDetached
 import at.asitplus.wallet.lib.data.KeyBindingJws
 import at.asitplus.wallet.lib.data.SdJwtConstants.NAME_SD
 import at.asitplus.wallet.lib.data.SelectiveDisclosureItem
@@ -240,8 +242,14 @@ class VerifiablePresentationFactory(
 
         val deviceNameSpaceBytes = ByteStringWrapper(DeviceNameSpaces(mapOf()))
         val input = IsoDeviceSignatureInput(schemeIdentifier, deviceNameSpaceBytes)
-        val deviceSignature = request.calcIsoDeviceSignaturePlain(input)
-            ?: throw PresentationException("calcIsoDeviceSignature not implemented")
+        val deviceSignature = request.calcIsoDeviceSignature(
+            signDeviceAuthDetached = SignCoseDetached(
+                keyMaterial = keyMaterial,
+                protectedHeaderModifier = CoseHeaderNone(),
+                unprotectedHeaderModifier = CoseHeaderNone()
+            ),
+            input = input
+        )
 
         Document(
             docType = schemeIdentifier,

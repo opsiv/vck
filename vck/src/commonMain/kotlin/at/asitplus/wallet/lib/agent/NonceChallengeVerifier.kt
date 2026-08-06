@@ -36,7 +36,6 @@ class NonceChallengeVerifier @JvmOverloads constructor(
      */
     suspend fun createPresentationRequest(
         transactionData: List<TransactionDataBase64Url>? = null,
-        calcIsoDeviceSignaturePlain: suspend (IsoDeviceSignatureInput) -> CoseSigned<ByteArray>? = { null },
         returnOneDeviceResponse: Boolean = false,
         calcIsoSessionTranscript: suspend () -> SessionTranscript = { throw IllegalStateException(
             "Session transcript calculation callback was not provided. This is required for ISO mDoc presentations.") },
@@ -44,7 +43,6 @@ class NonceChallengeVerifier @JvmOverloads constructor(
         nonce = provideNonce(),
         audience = verifierId,
         transactionData = transactionData,
-        calcIsoDeviceSignaturePlain = calcIsoDeviceSignaturePlain,
         calcIsoSessionTranscript = calcIsoSessionTranscript,
         returnOneDeviceResponse = returnOneDeviceResponse,
     )

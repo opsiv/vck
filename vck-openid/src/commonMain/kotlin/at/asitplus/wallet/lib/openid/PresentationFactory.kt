@@ -83,12 +83,6 @@ internal class PresentationFactory(
             audience = state.audience,
             transactionData = state.request.parameters.transactionData,
             calcIsoSessionTranscript = sessionTranscriptCallback,
-            calcIsoDeviceSignaturePlain = {
-                calcDeviceSignature(
-                    sessionTranscriptCallback = sessionTranscriptCallback,
-                    docType = it.docType,
-                )
-            }
         )
 
         holder.createPresentation(
@@ -110,27 +104,6 @@ internal class PresentationFactory(
             is DeviceRetrievalParameters ->
                 throw InvalidRequest("ISO Device Retrieval responses are not OpenID4VP presentations")
         }
-    }
-
-    /**
-     * Performs calculation of the [SessionTranscript] and [DeviceAuthentication], according to OpenID4VP 1.0
-     */
-    @Throws(PresentationException::class, CancellationException::class)
-    private suspend fun calcDeviceSignature(
-        sessionTranscriptCallback: suspend () -> SessionTranscript,
-        docType: String,
-    ): CoseSigned<ByteArray> = signDeviceAuthDetached(
-        protectedHeader = null,
-        unprotectedHeader = null,
-        payload = DeviceAuthentication(
-            type = DeviceAuthentication.TYPE,
-            sessionTranscript = sessionTranscriptCallback.invoke(),
-            docType = docType,
-            namespaces = ByteStringWrapper(DeviceNameSpaces(mapOf()))
-        ).wrap(),
-        serializer = ByteArraySerializer()
-    ).getOrElse {
-        throw PresentationException("signDeviceAuthDetached failed", it)
     }
 
     internal fun calcSessionTranscript(

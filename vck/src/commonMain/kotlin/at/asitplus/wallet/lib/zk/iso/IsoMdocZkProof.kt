@@ -5,7 +5,7 @@ import at.asitplus.iso.ZkDocumentData
 import at.asitplus.iso.ZkSignedList
 import at.asitplus.iso.ZkSystemSpec
 import at.asitplus.signum.indispensable.cosef.io.ByteStringWrapper
-import kotlinx.datetime.LocalDate
+import kotlin.time.Instant
 
 /**
  * Intermediary self-contained representation of an ISO mDoc Zero-Knowledge proof.
@@ -50,7 +50,7 @@ abstract class IsoMdocZkProof protected constructor() {
     /**
      * The timestamp of when the proof was generated or the relevant reference time.
      */
-    abstract val timestamp: LocalDate
+    abstract val timestamp: Instant
 
     /**
      * Verifies the ZK proof.

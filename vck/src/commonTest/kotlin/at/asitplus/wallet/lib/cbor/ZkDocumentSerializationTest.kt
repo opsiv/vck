@@ -9,8 +9,9 @@ import at.asitplus.signum.indispensable.cosef.io.coseCompliantSerializer
 import at.asitplus.testballoon.matrix.matrixSuite
 import com.benasher44.uuid.uuid4
 import io.kotest.matchers.equals.shouldBeEqual
-import kotlinx.datetime.LocalDate
+import io.kotest.matchers.shouldBe
 import kotlinx.serialization.encodeToByteArray
+import kotlin.time.Instant
 
 val ZkDocumentSerializationTest by matrixSuite {
 
@@ -20,7 +21,7 @@ val ZkDocumentSerializationTest by matrixSuite {
                 ZkDocumentData(
                     docType = uuid4().toString(),
                     zkSystemId = uuid4().toString(),
-                    timestamp = LocalDate.parse("2026-01-01"),
+                    timestamp = Instant.parse("2026-01-01T00:00:00Z"),
                     issuerSigned = mapOf(
                         uuid4().toString() to ZkSignedList(
                             mutableListOf(
@@ -73,5 +74,23 @@ val ZkDocumentSerializationTest by matrixSuite {
         doc shouldBeEqual deserialized
     }
 
+    "Serialize msoX5chain with its textual Multipaz-compatible field name" {
+        val doc = ZkDocument(
+            ByteStringWrapper(
+                ZkDocumentData(
+                    docType = "org.example.test",
+                    zkSystemId = "example-zk",
+                    timestamp = Instant.parse("2026-01-01T00:00:00Z"),
+                    certificateChain = listOf(byteArrayOf(1, 2, 3)),
+                )
+            ),
+            proof = byteArrayOf(4, 5, 6),
+        )
+
+        val serialized = coseCompliantSerializer.encodeToByteArray(doc)
+        val fieldName = "msoX5chain".encodeToByteArray().toList()
+
+        serialized.toList().windowed(fieldName.size).any { it == fieldName } shouldBe true
+    }
 
 }

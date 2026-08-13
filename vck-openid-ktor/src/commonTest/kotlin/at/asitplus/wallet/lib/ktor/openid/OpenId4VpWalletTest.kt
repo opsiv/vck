@@ -24,6 +24,7 @@ import at.asitplus.openid.dcql.DCQLIsoMdocClaimsQuery
 import at.asitplus.openid.dcql.DCQLIsoMdocCredentialMetadataAndValidityConstraints
 import at.asitplus.openid.dcql.DCQLIsoMdocCredentialQuery
 import at.asitplus.openid.dcql.DCQLQuery
+import at.asitplus.openid.truncateToSeconds
 import at.asitplus.signum.indispensable.josef.io.joseCompliantSerializer
 import at.asitplus.testballoon.matrix.fixture
 import at.asitplus.testballoon.matrix.matrixSuite
@@ -195,7 +196,7 @@ val OpenId4VpWalletTest by matrixSuite {
 
                 ISO_MDOC -> CredentialToBeIssued.Iso(
                     issuerSignedItems = attributes.map { it.toIssuerSignedItem() },
-                    expiration = Clock.System.now().plus(1.minutes),
+                    expiration = Clock.System.now().plus(120.minutes).truncateToSeconds(),
                     scheme = scheme as IsoMdocCredentialScheme,
                     subjectPublicKey = keyMaterial.publicKey,
                     userInfo = OidcUserInfoExtended.fromOidcUserInfo(OidcUserInfo("subject")).getOrThrow(),
@@ -576,4 +577,4 @@ private suspend fun assertPresentation(countdownLatch: Mutex) {
 }
 
 
-private fun randomString(): String = Random.nextBytes(32).encodeToString(Base16)
+private fun randomString(): String = Random.nextBytes(13).encodeToString(Base16)

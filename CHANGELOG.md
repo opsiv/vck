@@ -1,6 +1,7 @@
 # Changelog
 
 Release 8.0.0 (unreleased):
+- Make serialized ISO mDoc ZK `msoX5chain` compatible with Multipaz's textual field name.
 - ISO mDoc Zero-Knowledge Proofs:
   - Add the `ZkRequest`-based ISO mDoc ZK presentation path and convert DCQL ZK metadata into
   `ZkRequest` for holder-side proof generation

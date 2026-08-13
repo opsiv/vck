@@ -1,12 +1,11 @@
 package at.asitplus.iso
 
-import kotlinx.datetime.LocalDate
 import kotlinx.serialization.Contextual
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.cbor.ByteString
-import kotlinx.serialization.cbor.CborLabel
 import kotlinx.serialization.cbor.ValueTags
+import kotlin.time.Instant
 
 /**
  * Part of the ISO/IEC 18013-5:2026 standard: ZKP Mdoc response (10.3.4)
@@ -18,8 +17,8 @@ data class ZkDocumentData (
     @SerialName("zkSystemId")
     val zkSystemId: String,
     @SerialName("timestamp")
-    @ValueTags(1004u)
-    val timestamp: LocalDate,
+    @ValueTags(0u)
+    val timestamp: Instant,
     @SerialName("issuerSigned")
     @Serializable(with = NamespacedZkSignedListSerializer::class)
     val issuerSigned: Map<String, @Contextual ZkSignedList>? = null,
@@ -38,7 +37,6 @@ data class ZkDocumentData (
      *
      * See [RFC9360](https://datatracker.ietf.org/doc/html/rfc9360)
      */
-    @CborLabel(33)
     @SerialName("msoX5chain")
     @ByteString
     val certificateChain: List<ByteArray>? = null,

@@ -30,6 +30,7 @@ include(":vck-openid")
 include(":vck-openid-ktor")
 include(":rfc3986-uri-syntax")
 include(":sd-jwt-type-metadata")
+include(":longfellow-multipaz")
 
 
 val signumFile = file("../signum/build.gradle.kts")

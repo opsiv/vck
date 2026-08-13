@@ -3,6 +3,7 @@
 Release 8.0.0 (unreleased):
 - Build: Upgrade to the 20260722 conventions plugin and AGP 9, and migrate Android library targets to the new Kotlin Multiplatform Android library plugin API
 - ETSI data classes:
+- Make serialized ISO mDoc ZK `msoX5chain` compatible with Multipaz's textual field name.
 - ISO mDoc Zero-Knowledge Proofs:
   - Add the `ZkRequest`-based ISO mDoc ZK presentation path and convert DCQL ZK metadata into
   `ZkRequest` for holder-side proof generation

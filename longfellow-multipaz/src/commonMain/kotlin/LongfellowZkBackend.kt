@@ -30,17 +30,11 @@ import io.github.aakira.napier.Napier
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.builtins.ByteArraySerializer
 import kotlinx.serialization.builtins.serializer
-import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
 import org.multipaz.cbor.Cbor
-import org.multipaz.cbor.CborArray
 import org.multipaz.cbor.DataItem
-import org.multipaz.cbor.Bstr
-import org.multipaz.cbor.CborMap
-import org.multipaz.cbor.buildCborMap
 import org.multipaz.mdoc.response.MdocDocument
 import org.multipaz.mdoc.zkp.ZkSystemParamValue
-import org.multipaz.mdoc.zkp.ZkDocument as MultipazZkDocument
 import org.multipaz.mdoc.zkp.ZkSystemSpec as MultipazZkSystemSpec
 import org.multipaz.mdoc.zkp.longfellow.LongfellowZkSystem
 import org.multipaz.request.MdocRequestedClaim
@@ -126,9 +120,6 @@ class LongfellowZkBackend : IsoMdocZkBackend {
 
         return backend.getMatchingSystemSpec(multipazZkSystemSpecs, multipazRequestedClaims)
     }
-
-
-
 
     override suspend fun generate(
         request: PresentationRequestParameters,
@@ -311,38 +302,3 @@ fun SessionTranscript.toMultipazSessionTranscript(): DataItem {
     return Cbor.decode(serialized)
 }
 
-private fun MultipazZkDocument.toZkDocument(): ZkDocument {
-    val dataItem = toDataItem()
-    val multipazDocument = dataItem as? CborMap
-        ?: return coseCompliantSerializer.decodeFromByteArray(Cbor.encode(dataItem))
-
-    val normalizedDocument = buildCborMap {
-        multipazDocument.items.forEach { (key, value) ->
-            if (key.asTstr == "documentData") {
-                put(key, value.normalizeDocData())
-            } else {
-                put(key, value)
-            }
-        }
-    }
-
-    return coseCompliantSerializer.decodeFromByteArray(Cbor.encode(normalizedDocument))
-}
-
-/**
- * Ensures `msoX5chain` inside `documentData` is wrapped in a `CborArray`
- * if it was encoded as a single `Bstr` (RFC 9360).
- */
-private fun DataItem.normalizeDocData(): DataItem {
-    if (this !is Bstr) return this
-    val innerMap = (Cbor.decode(value) as? CborMap) ?: return this
-    if (innerMap["msoX5chain"] !is Bstr) return this
-
-    val updatedInnerMap = buildCborMap {
-        innerMap.items.forEach { (key, value) ->
-            val newValue = if (key.asTstr == "msoX5chain") CborArray(mutableListOf(value)) else value
-            put(key, newValue)
-        }
-    }
-    return Bstr(Cbor.encode(updatedInnerMap))
-}

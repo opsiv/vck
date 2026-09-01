@@ -36,24 +36,73 @@ import org.multipaz.cbor.Cbor
 import org.multipaz.cbor.CborArray
 import org.multipaz.cbor.DataItem
 import org.multipaz.cbor.Bstr
-import org.multipaz.cbor.Tagged
-import org.multipaz.cbor.Tstr
-import org.multipaz.cbor.Uint
+import org.multipaz.cbor.CborMap
 import org.multipaz.cbor.buildCborMap
 import org.multipaz.mdoc.response.MdocDocument
 import org.multipaz.mdoc.zkp.ZkSystemParamValue
+import org.multipaz.mdoc.zkp.ZkDocument as MultipazZkDocument
 import org.multipaz.mdoc.zkp.ZkSystemSpec as MultipazZkSystemSpec
 import org.multipaz.mdoc.zkp.longfellow.LongfellowZkSystem
+import org.multipaz.request.MdocRequestedClaim
 import kotlin.ByteArray
 import kotlin.time.Clock
-
 class LongfellowZkBackend : IsoMdocZkBackend {
     private lateinit var backend: LongfellowZkSystem
-    private var zkSystemsMap: Map<MultipazZkSystemSpec, ZkSystemSpec> = emptyMap()
+    private val zkSystemsMap: Map<ZkSystemSpec, MultipazZkSystemSpec> get() =
+        backend.systemSpecs.associateBy { it.toZkSystemSpec() }
+
+    private fun MultipazZkSystemSpec.toZkSystemSpec() = ZkSystemSpec(
+        id = id,
+        system = system,
+        params = params.entries.associate { (key, paramValue) ->
+            key to when (paramValue) {
+                is ZkSystemParamValue.BooleanValue -> paramValue.value
+                is ZkSystemParamValue.StringValue -> paramValue.value
+                is ZkSystemParamValue.DoubleValue -> paramValue.value
+                is ZkSystemParamValue.LongValue -> paramValue.value
+            }
+        }
+    )
+
+    private fun ZkSystemSpec.toMultipazZkSystemSpec(): MultipazZkSystemSpec = MultipazZkSystemSpec(id, system).also { spec ->
+        params.forEach { (key, value) ->
+            when (value) {
+                is String -> spec.addParam(key, value)
+                is Int -> spec.addParam(key, value.toLong())
+                is Long -> spec.addParam(key, value)
+                is Double -> spec.addParam(key, value)
+                is Boolean -> spec.addParam(key, value)
+                else -> throw IllegalArgumentException(
+                    "Cannot convert to Multipaz ZkSystemSpec due to unsupported parameter value type: " +
+                            "${value::class.simpleName ?: value::class} for key '$key'"
+                )
+            }
+        }
+    }
+
+
+    private fun NormalizedJsonPath.toMdocRequestedClaim(
+        docType: String,
+    ): MdocRequestedClaim {
+        require(segments.size == 2 && segments.all { it is NormalizedJsonPathSegment.NameSegment }) {
+            "Expected an mdoc claim path with a namespace and data element: $this"
+        }
+
+        val (namespaceName, dataElementName) = segments
+            .map { (it as NormalizedJsonPathSegment.NameSegment).memberName }
+
+        return MdocRequestedClaim(
+            docType = docType,
+            namespaceName = namespaceName,
+            dataElementName = dataElementName,
+            intentToRetain = false, // TODO: Consider using the actual value instead of a place holder "false"
+        )
+    }
+
+    override val zkSystemSpecs:  List<ZkSystemSpec> get() = zkSystemsMap.keys.toList()
 
     override val system: String get() = backend.name
 
-    override val zkSystemSpecs:  List<ZkSystemSpec> get() = zkSystemsMap.values.toList()
     override val paramSerializers: Map<String, KSerializer<*>> = mapOf(
         "version" to Long.serializer(),
         "circuit_hash" to String.serializer(),
@@ -61,6 +110,24 @@ class LongfellowZkBackend : IsoMdocZkBackend {
         "block_enc_hash" to Long.serializer(),
         "block_enc_sig" to Long.serializer(),
     )
+
+    private fun chooseZkSystemSpec(
+        credential: StoreEntry.Iso,
+        requestedClaims: Collection<NormalizedJsonPath>,
+        zkSystemSpecs: List<ZkSystemSpec>,
+    ): MultipazZkSystemSpec? {
+        val multipazZkSystemSpecs = zkSystemSpecs
+            .filter { this.supports(it) }
+            .map { it.toMultipazZkSystemSpec() }
+
+        val multipazRequestedClaims = requestedClaims.map {
+            it.toMdocRequestedClaim(credential.schemeIdentifier)
+        }
+
+        return backend.getMatchingSystemSpec(multipazZkSystemSpecs, multipazRequestedClaims)
+    }
+
+
 
 
     override suspend fun generate(
@@ -70,30 +137,13 @@ class LongfellowZkBackend : IsoMdocZkBackend {
         zkSystemSpecs: List<ZkSystemSpec>,
         keyMaterial: KeyMaterial
     ): KmmResult<IsoMdocZkProof> = catching {
-        // 1. Generate the document directly using Verifiable Presentation Factory
-        // 2. Convert the document into one for multipaz (serialize and then deserialize again)
-        // 3. Convert the resulting multipaz Zk Document back into a ZkDocument for VCK (serialize and deserialize again)
-        // 4. Read out the document id and match it with the ZkSystems in the list
-        // 5. Use the matched zksystem and the zkdocument to form an IsoMdocZkLon.gfellowProof
-
-        // OK new Branch. we fix the naming for ZKSystemSpec. we do use an open ZkSystem class and DCQL verison is just in implementaiton of that. get rid of the unnecessary data class here.
-        // new branch also gets the supported ones and the key material
-
-        // In general systems could assemble the proof themselves using the credential + the key material/signer, right? in that case we should expose those values here:
-        // So I think it is better to instead expose the whole request, credential, key material + optional signer with default value and
-        // then do it on our own. it is better than a callback or a VerifiablePresentationFactory because it is compatible with potential future schemes!
-
-        // Convert zkSystemSpec and choose a fitting one:
         val sessionTranscript = request.calcIsoSessionTranscript()?.toMultipazSessionTranscript()
             ?: throw IllegalStateException("No Session Transcript Callback provided")
 
-        val multipazZkSystemSpecs = zkSystemSpecs
-            .filter { it.params["version"] == 7L && it.params["num_attributes"] == 1L }
-            .map { it.toMultipazZkSystemSpec() }
+        val selectedMultipazZkSystemSpec = chooseZkSystemSpec(credential, requestedClaims, zkSystemSpecs)
+            ?: throw IllegalStateException("No matching ZK system spec found")
 
-        // TODO: replace using backend.getMatchingSystemSpec eventually
-        val selectedMultipazZkSystemSpec = multipazZkSystemSpecs.single()
-        val selectedZkSystemSpec = selectedMultipazZkSystemSpec.toAsitplusZkSystemSpec()
+        val selectedZkSystemSpec = selectedMultipazZkSystemSpec.toZkSystemSpec()
 
         val signDeviceAuthDetached = SignCoseDetached<ByteArray>(
             keyMaterial = keyMaterial,
@@ -140,20 +190,6 @@ class LongfellowZkBackend : IsoMdocZkBackend {
 
     override suspend fun initialize(): KmmResult<Unit> = catching {
         backend = LongfellowZkSystem().also { it.addDefaultCircuits() }
-        zkSystemsMap = backend.systemSpecs.associateWith {
-            ZkSystemSpec(
-                id = it.id,
-                system = it.system,
-                params = it.params.entries.associate { (key, value) ->
-                    key to when (value) {
-                        is ZkSystemParamValue.BooleanValue -> value.value
-                        is ZkSystemParamValue.StringValue -> value.value
-                        is ZkSystemParamValue.DoubleValue -> value.value
-                        is ZkSystemParamValue.LongValue -> value.value
-                    }
-                }
-            )
-        }
     }
 }
 
@@ -261,24 +297,9 @@ private suspend fun calculateDeviceSignature(
     }
 }
 
-suspend fun ZkDocument.toMultipazZkDocument(): MdocDocument {
-    val serializedZkDocument = coseCompliantSerializer.encodeToByteArray(this)
-    return MdocDocument.fromDataItem(Cbor.decode(serializedZkDocument))
-}
 
-fun ZkSystemSpec.toMultipazZkSystemSpec(): MultipazZkSystemSpec {
-    val spec = MultipazZkSystemSpec(id, system)
-    params.forEach {
-        when (it.value) {
-            is String -> spec.addParam(it.key, it.value as String)
-            is Int -> spec.addParam(it.key, (it.value as Int).toLong())
-            is Long -> spec.addParam(it.key, it.value as Long)
-            is Boolean -> spec.addParam(it.key, it.value as Boolean)
-            else -> throw IllegalArgumentException("Unsupported parameter value type: ${it.value} for  ${it.key}")
-        }
-    }
-    return spec
-}
+
+
 
 suspend fun Document.toMultipazDocument(): MdocDocument {
     val serializedZkDocument = coseCompliantSerializer.encodeToByteArray(this)
@@ -290,60 +311,38 @@ fun SessionTranscript.toMultipazSessionTranscript(): DataItem {
     return Cbor.decode(serialized)
 }
 
-fun org.multipaz.mdoc.zkp.ZkDocument.toZkDocument(): ZkDocument {
-    // Multipaz follows COSE_X509 and encodes a one-certificate chain as a single
-    // byte string, while VCK models the same field as List<ByteArray> and its
-    // serializer expects an array. Normalize only that singleton representation
-    // at the interop boundary; multi-certificate chains are already arrays.
-    val multipazDocument = this.toDataItem()
-    val docDataKey = multipazDocument.asMap.keys.find { (it is Tstr && it.asTstr == "documentData") }
-        ?: multipazDocument.asMap.keys.first()
-    val documentData = multipazDocument[docDataKey] as Tagged
-    val documentDataItem = Cbor.decode(documentData.asTagged.asBstr)
+private fun MultipazZkDocument.toZkDocument(): ZkDocument {
+    val dataItem = toDataItem()
+    val multipazDocument = dataItem as? CborMap
+        ?: return coseCompliantSerializer.decodeFromByteArray(Cbor.encode(dataItem))
 
-    val certKey = documentDataItem.asMap.keys.find {
-        (it is Tstr && it.asTstr == "msoX5chain") || it == Uint(33uL)
-    }
-    val certificateChain = certKey?.let { documentDataItem.asMap[it] }
-
-    val normalizedEncoded = if (certificateChain is Bstr) {
-        val normalizedDocumentData = buildCborMap {
-            documentDataItem.asMap.forEach { (key, value) ->
-                if (key == certKey) {
-                    put(key, CborArray(mutableListOf(value)))
-                } else {
-                    put(key, value)
-                }
+    val normalizedDocument = buildCborMap {
+        multipazDocument.items.forEach { (key, value) ->
+            if (key.asTstr == "documentData") {
+                put(key, value.normalizeDocData())
+            } else {
+                put(key, value)
             }
         }
-        buildCborMap {
-            multipazDocument.asMap.forEach { (key, value) ->
-                if (key == docDataKey) {
-                    put(key, Tagged(Tagged.ENCODED_CBOR, Bstr(Cbor.encode(normalizedDocumentData))))
-                } else {
-                    put(key, value)
-                }
-            }
-        }
-    } else {
-        multipazDocument
     }
-    val encoded = Cbor.encode(item = normalizedEncoded)
-    val zkDocument = coseCompliantSerializer.decodeFromByteArray<ZkDocument>(encoded)
-    return zkDocument
+
+    return coseCompliantSerializer.decodeFromByteArray(Cbor.encode(normalizedDocument))
 }
 
-fun MultipazZkSystemSpec.toAsitplusZkSystemSpec(): ZkSystemSpec {
-    val outParams = mutableMapOf<String, Any>()
-    params.forEach { (key, paramValue) ->
-        when (paramValue) {
-            is ZkSystemParamValue.StringValue -> outParams[key] = paramValue.value
-            is ZkSystemParamValue.LongValue -> outParams[key] = paramValue.value
-            is ZkSystemParamValue.DoubleValue -> outParams[key] = paramValue.value
-            is ZkSystemParamValue.BooleanValue -> outParams[key] = paramValue.value
+/**
+ * Ensures `msoX5chain` inside `documentData` is wrapped in a `CborArray`
+ * if it was encoded as a single `Bstr` (RFC 9360).
+ */
+private fun DataItem.normalizeDocData(): DataItem {
+    if (this !is Bstr) return this
+    val innerMap = (Cbor.decode(value) as? CborMap) ?: return this
+    if (innerMap["msoX5chain"] !is Bstr) return this
+
+    val updatedInnerMap = buildCborMap {
+        innerMap.items.forEach { (key, value) ->
+            val newValue = if (key.asTstr == "msoX5chain") CborArray(mutableListOf(value)) else value
+            put(key, newValue)
         }
     }
-    val spec = ZkSystemSpec(id, system, outParams)
-
-    return spec
+    return Bstr(Cbor.encode(updatedInnerMap))
 }

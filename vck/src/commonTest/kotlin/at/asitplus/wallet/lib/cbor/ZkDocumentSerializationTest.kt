@@ -74,7 +74,7 @@ val ZkDocumentSerializationTest by matrixSuite {
         doc shouldBeEqual deserialized
     }
 
-    "Serialize msoX5chain with its textual Multipaz-compatible field name" {
+    "Serialize and deserialize msoX5chain with its textual field name" {
         val doc = ZkDocument(
             ByteStringWrapper(
                 ZkDocumentData(
@@ -91,6 +91,14 @@ val ZkDocumentSerializationTest by matrixSuite {
         val fieldName = "msoX5chain".encodeToByteArray().toList()
 
         serialized.toList().windowed(fieldName.size).any { it == fieldName } shouldBe true
+
+        val deserialized = coseCompliantSerializer.decodeFromByteArray(ZkDocument.serializer(), serialized)
+        deserialized.zkDocumentDataBytes.value.docType shouldBe doc.zkDocumentDataBytes.value.docType
+        deserialized.zkDocumentDataBytes.value.zkSystemId shouldBe doc.zkDocumentDataBytes.value.zkSystemId
+        deserialized.zkDocumentDataBytes.value.timestamp shouldBe doc.zkDocumentDataBytes.value.timestamp
+        deserialized.zkDocumentDataBytes.value.certificateChain.orEmpty().single()
+            .contentEquals(doc.zkDocumentDataBytes.value.certificateChain.orEmpty().single()) shouldBe true
+        deserialized.proof.contentEquals(doc.proof) shouldBe true
     }
 
 }

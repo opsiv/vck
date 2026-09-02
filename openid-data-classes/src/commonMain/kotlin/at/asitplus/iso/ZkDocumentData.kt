@@ -28,6 +28,12 @@ data class ZkDocumentData (
     @Serializable(with = NormalizedX509Serializer::class)
     val certificateChain: List<ByteArray>? = null,
 ) {
+    init {
+        require(certificateChain == null || certificateChain.isNotEmpty()) {
+            "Certificate chain must be null or contain at least one certificate."
+        }
+    }
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is ZkDocumentData) return false

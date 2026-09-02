@@ -4,15 +4,27 @@ import kotlinx.serialization.KSerializer
 import kotlinx.serialization.builtins.ByteArraySerializer
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.descriptors.SerialDescriptor
-import kotlinx.serialization.descriptors.buildClassSerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 
+/**
+ * Custom serializer for a certificate chain (`List<ByteArray>`).
+ *
+ * **Serialization (Writing):** Complies with RFC 9360, Section 2 by writing a single certificate
+ * directly as a raw CBOR Byte String (`bstr`), and multiple certificates as a CBOR Array of
+ * Byte Strings (`[ 2* bstr ]`).
+ *
+ * **Deserialization (Reading):** Strictly expects a CBOR Array format (`[ * bstr ]`) for any
+ * certificate list (which is why upstream pre-normalization (e.g. via [ZkDocumentDataWrapperSerializer])
+ * is required to convert single raw `bstr` values into 1-item arrays).
+ *
+ * `null` values are supported through standard property nullability.
+ */
 object NormalizedX509Serializer : KSerializer<List<ByteArray>> {
     private val listSerializer = ListSerializer(ByteArraySerializer())
 
     override val descriptor: SerialDescriptor =
-        buildClassSerialDescriptor("NormalizedX509Serializer")
+        SerialDescriptor("NormalizedListX509", listSerializer.descriptor)
 
     /**
      * Serializes a list of byte arrays representing X.509 certificates into the specified encoder

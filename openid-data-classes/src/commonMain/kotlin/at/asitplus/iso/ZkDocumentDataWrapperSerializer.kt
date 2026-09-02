@@ -5,8 +5,6 @@ import at.asitplus.signum.indispensable.cosef.io.coseCompliantSerializer
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.builtins.ByteArraySerializer
 import kotlinx.serialization.decodeFromByteArray
-import kotlinx.serialization.descriptors.PrimitiveKind
-import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.encoding.Decoder
@@ -25,9 +23,12 @@ import net.orandja.obor.data.CborText
  * certificate chains can be encoded as either a single CBOR Byte String (`bstr`)
  * or an Array of Byte Strings (`[ 2* bstr ]`).
  *
- * Because `kotlinx.serialization` relies on a strict streaming decoder and cannot peek or backtrack,
- * this serializer uses `obor` to normalize single byte strings into a list structure
- * so that `kotlinx.serialization` can successfully deserialize the payload.
+ * **Normalization Behavior:**
+ * This wrapper uses `obor` to inspect the raw CBOR payload. If the certificate chain
+ * (`msoX5chain`) is present as a single byte string, it **normalizes** it by wrapping it into a
+ * 1-item CBOR Array. This guarantees that `kotlinx.serialization` (via [NormalizedX509Serializer])
+ * always encounters a uniform list structure, independent of whether 1 or multiple items
+ * (or null) are present.
  *
  * @see [NormalizedX509Serializer] for `msoX5chain` (de-)serialization.
  */

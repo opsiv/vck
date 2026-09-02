@@ -2,8 +2,6 @@ package at.asitplus.wallet.lib.zk.iso
 
 import at.asitplus.iso.ZkSignedList
 import at.asitplus.iso.ZkSystemSpec
-import at.asitplus.wallet.lib.zk.iso.IsoMdocZkProof
-import org.multipaz.mdoc.zkp.ZkDocument as MultipazZkDocument
 import kotlin.time.Instant
 
 

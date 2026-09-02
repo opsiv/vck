@@ -105,6 +105,14 @@ class LongfellowZkBackend : IsoMdocZkBackend {
         "block_enc_sig" to Long.serializer(),
     )
 
+    override fun supports(candidate: ZkSystemSpec): Boolean {
+        return zkSystemSpecs.any { supportedSpec ->
+            supportedSpec.system == candidate.system
+                    && candidate.params["circuit_hash"] != null
+                    && candidate.params["circuit_hash"] == supportedSpec.params["circuit_hash"]
+        }
+    }
+
     private fun chooseZkSystemSpec(
         credential: StoreEntry.Iso,
         requestedClaims: Collection<NormalizedJsonPath>,
@@ -117,8 +125,13 @@ class LongfellowZkBackend : IsoMdocZkBackend {
         val multipazRequestedClaims = requestedClaims.map {
             it.toMdocRequestedClaim(credential.schemeIdentifier)
         }
+        val matchingSupportedSpec = backend.getMatchingSystemSpec(multipazZkSystemSpecs, multipazRequestedClaims)
 
-        return backend.getMatchingSystemSpec(multipazZkSystemSpecs, multipazRequestedClaims)
+        return matchingSupportedSpec?.let { spec ->
+            val id = multipazZkSystemSpecs.first { it.params["circuit_hash"] == spec.params["circuit_hash"] }.id
+            spec.copyWithParameters(id = id)
+        }
+
     }
 
     override suspend fun generate(

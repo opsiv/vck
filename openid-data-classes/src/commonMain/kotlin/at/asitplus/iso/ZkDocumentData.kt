@@ -24,7 +24,11 @@ data class ZkDocumentData (
     @SerialName("deviceSigned")
     @Serializable(with = NamespacedZkSignedListSerializer::class)
     val deviceSigned: Map<String, @Contextual ZkSignedList>? = null,
-    @SerialName("msoX5chain")
-    @Serializable(with = CoseX509Serializer::class)
+    @SerialName(PROP_ELEMENT_CERT_CHAIN)
+    @Serializable(with = NormalizedX509Serializer::class)
     val certificateChain: List<ByteArray>? = null,
-)
+) {
+    companion object {
+        internal const val PROP_ELEMENT_CERT_CHAIN = "msoX5chain"
+    }
+}

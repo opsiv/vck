@@ -8,11 +8,11 @@ import kotlinx.serialization.descriptors.buildClassSerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 
-object CoseX509Serializer : KSerializer<List<ByteArray>> {
+object NormalizedX509Serializer : KSerializer<List<ByteArray>> {
     private val listSerializer = ListSerializer(ByteArraySerializer())
 
     override val descriptor: SerialDescriptor =
-        buildClassSerialDescriptor("X509CertificateChainCborSerializer")
+        buildClassSerialDescriptor("NormalizedX509Serializer")
 
     /**
      * Serializes a list of byte arrays representing X.509 certificates into the specified encoder
@@ -23,26 +23,26 @@ object CoseX509Serializer : KSerializer<List<ByteArray>> {
      * - **Single Certificate:** Encoded directly as a single CBOR Byte String (`bstr`).
      * - **Multiple Certificates:** Encoded as a CBOR Array of Byte Strings (`[ 2* bstr ]`).
      *
+     *
      * @param encoder The encoder to serialize data into.
      * @param value The list of byte arrays (certificates) to encode.
      */
-    override fun serialize(encoder: Encoder, value: List<ByteArray>) {
-        when {
-            value.size == 1 -> encoder.encodeSerializableValue(ByteArraySerializer(), value.first())
-            else -> encoder.encodeSerializableValue(listSerializer, value)
-        }
+    override fun serialize(encoder: Encoder, value: List<ByteArray>) = when {
+        value.size == 1 -> encoder.encodeSerializableValue(ByteArraySerializer(), value.first())
+        else -> encoder.encodeSerializableValue(listSerializer, value)
     }
 
-    override fun deserialize(decoder: Decoder): List<ByteArray> {
-        // TODO: This deserialization approach is unreliable and will fail in some cases.
-        // RFC 9360 defines two distinct CBOR structures (bstr or [+ bstr]) for this field.
-        // Because kotlinx.serialization cannot "peek" the type or rewind the stream, if the
-        // list decoding fails (e.g., it was actually a single bstr), the decoder's internal
-        // state is already advanced/corrupted, causing the fallback to fail as well.
-        return runCatching {
-            decoder.decodeSerializableValue(listSerializer)
-        }.getOrElse {
-            listOf(decoder.decodeSerializableValue(ByteArraySerializer()))
-        }
-    }
+    /**
+     * Deserializes a list of X.509 certificates from the specified decoder.
+     *
+     * **Warning:** This deserializer assumes the input has already been normalized into a
+     * CBOR Array of Byte Strings (e.g., via [ZkDocumentDataWrapperSerializer]). It does not
+     * support raw single byte strings (`bstr`) to avoid unsafe decoding failures caused by
+     * `kotlinx.serialization`'s streaming decoder limitations.
+     *
+     * @param decoder The decoder to read data from.
+     * @return The list of byte arrays representing the certificates.
+     */
+    override fun deserialize(decoder: Decoder): List<ByteArray> =
+        decoder.decodeSerializableValue(listSerializer)
 }

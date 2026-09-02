@@ -1,4 +1,4 @@
-package at.asitplus.wallet.lib.cbor
+package at.asitplus.wallet.lib.zk.iso
 
 import at.asitplus.data.NonEmptyList.Companion.nonEmptyListOf
 import at.asitplus.iso.DeviceRequest
@@ -42,8 +42,6 @@ import at.asitplus.wallet.lib.data.ConstantIndex.CredentialRepresentation.ISO_MD
 import at.asitplus.wallet.lib.data.CredentialPresentationRequest
 import at.asitplus.wallet.lib.data.IsoMdocCredentialScheme
 import at.asitplus.wallet.lib.data.rfc3986.toUri
-import at.asitplus.wallet.lib.zk.iso.IsoMdocZkBackendRegistry
-import at.asitplus.wallet.lib.zk.iso.IsoMdocZkEngine
 import com.benasher44.uuid.uuid4
 import io.github.z4kn4fein.semver.Version
 import io.kotest.matchers.collections.shouldBeSingleton

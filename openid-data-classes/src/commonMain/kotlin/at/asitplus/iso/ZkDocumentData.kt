@@ -11,24 +11,62 @@ import kotlin.time.Instant
  */
 @Serializable
 data class ZkDocumentData (
-    @SerialName("docType")
+    @SerialName(PROP_DOC_TYPE)
     val docType: String,
-    @SerialName("zkSystemId")
+    @SerialName(PROP_ZK_SYSTEM_ID)
     val zkSystemId: String,
-    @SerialName("timestamp")
+    @SerialName(PROP_TIME_STAMP)
     @ValueTags(0u)
     val timestamp: Instant,
-    @SerialName("issuerSigned")
+    @SerialName(PROP_ZK_ISSUER_SIGNED)
     @Serializable(with = NamespacedZkSignedListSerializer::class)
     val issuerSigned: Map<String, @Contextual ZkSignedList>? = null,
-    @SerialName("deviceSigned")
+    @SerialName(PROP_ZK_DEVICE_SIGNED)
     @Serializable(with = NamespacedZkSignedListSerializer::class)
     val deviceSigned: Map<String, @Contextual ZkSignedList>? = null,
-    @SerialName(PROP_ELEMENT_CERT_CHAIN)
+    @SerialName(PROP_CERT_CHAIN)
     @Serializable(with = NormalizedX509Serializer::class)
     val certificateChain: List<ByteArray>? = null,
 ) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is ZkDocumentData) return false
+
+        if (docType != other.docType) return false
+        if (zkSystemId != other.zkSystemId) return false
+        if (timestamp != other.timestamp) return false
+        if (issuerSigned != other.issuerSigned) return false
+        if (deviceSigned != other.deviceSigned) return false
+
+        if (certificateChain == null && other.certificateChain != null) return false
+        if (certificateChain != null && other.certificateChain == null) return false
+        if (certificateChain != null && other.certificateChain != null) {
+            if (certificateChain.size != other.certificateChain.size) return false
+            for (i in certificateChain.indices) {
+                if (!certificateChain[i].contentEquals(other.certificateChain[i])) return false
+            }
+        }
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = docType.hashCode()
+        result = 31 * result + zkSystemId.hashCode()
+        result = 31 * result + timestamp.hashCode()
+        result = 31 * result + issuerSigned.hashCode()
+        result = 31 * result + deviceSigned.hashCode()
+        result = 31 * result + (certificateChain?.sumOf { it.contentHashCode() } ?: 0)
+        return result
+    }
+
     companion object {
-        internal const val PROP_ELEMENT_CERT_CHAIN = "msoX5chain"
+        const val PROP_CERT_CHAIN = "msoX5chain"
+        const val PROP_DOC_TYPE = "docType"
+        const val PROP_ZK_SYSTEM_ID = "zkSystemId"
+        const val PROP_TIME_STAMP = "timestamp"
+        const val PROP_ZK_ISSUER_SIGNED = "issuerSigned"
+        const val PROP_ZK_DEVICE_SIGNED = "deviceSigned"
+
     }
 }

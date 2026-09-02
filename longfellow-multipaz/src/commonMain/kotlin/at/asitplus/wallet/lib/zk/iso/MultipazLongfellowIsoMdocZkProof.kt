@@ -1,4 +1,4 @@
-package at.asitplus.wallet.lib.cbor
+package at.asitplus.wallet.lib.zk.iso
 
 import at.asitplus.iso.ZkSignedList
 import at.asitplus.iso.ZkSystemSpec

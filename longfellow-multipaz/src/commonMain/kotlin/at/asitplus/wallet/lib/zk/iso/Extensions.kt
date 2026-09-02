@@ -1,4 +1,4 @@
-package at.asitplus.wallet.lib.cbor
+package at.asitplus.wallet.lib.zk.iso
 
 import at.asitplus.iso.ZkDocument
 import at.asitplus.signum.indispensable.cosef.io.coseCompliantSerializer

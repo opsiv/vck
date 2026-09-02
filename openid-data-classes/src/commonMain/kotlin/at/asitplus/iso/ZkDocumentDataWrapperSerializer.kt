@@ -34,7 +34,7 @@ import net.orandja.obor.data.CborText
 object ZkDocumentDataWrapperSerializer : KSerializer<ByteStringWrapper<ZkDocumentData>> {
 
     override val descriptor: SerialDescriptor =
-        PrimitiveSerialDescriptor("ByteStringWrapperZkDocumentData", PrimitiveKind.STRING)
+        SerialDescriptor("ByteStringWrapperZkDocumentData", ByteArraySerializer().descriptor)
 
     override fun deserialize(decoder: Decoder): ByteStringWrapper<ZkDocumentData> {
         val rawBytes = decoder.decodeSerializableValue(ByteArraySerializer())
@@ -50,7 +50,7 @@ object ZkDocumentDataWrapperSerializer : KSerializer<ByteStringWrapper<ZkDocumen
         )
 
     private fun normalizeCertificateChain(rawBytes: ByteArray): ByteArray {
-        val targetKey = CborText(ZkDocumentData.PROP_ELEMENT_CERT_CHAIN)
+        val targetKey = CborText(ZkDocumentData.PROP_CERT_CHAIN)
         val item = Cbor.decodeFromByteArray<CborMap>(rawBytes)
         val index = item.elements.indexOfFirst { it.key == targetKey }
         if (index == -1 || item.elements[index].value !is CborBytes) {

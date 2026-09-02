@@ -1,4 +1,4 @@
-package at.asitplus.wallet.lib.cbor
+package at.asitplus.wallet.lib.zk.iso
 
 import at.asitplus.KmmResult
 import at.asitplus.catching
@@ -24,8 +24,8 @@ import at.asitplus.wallet.lib.agent.KeyMaterial
 import at.asitplus.wallet.lib.agent.PresentationException
 import at.asitplus.wallet.lib.agent.PresentationRequestParameters
 import at.asitplus.wallet.lib.agent.SubjectCredentialStore.StoreEntry
-import at.asitplus.wallet.lib.zk.iso.IsoMdocZkBackend
-import at.asitplus.wallet.lib.zk.iso.IsoMdocZkProof
+import at.asitplus.wallet.lib.cbor.CoseHeaderNone
+import at.asitplus.wallet.lib.cbor.SignCoseDetached
 import io.github.aakira.napier.Napier
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.builtins.ByteArraySerializer
@@ -177,10 +177,6 @@ class LongfellowZkBackend : IsoMdocZkBackend {
             issuerZkSignedNamespaces = zkDocument.zkDocumentDataBytes.value.issuerSigned ?: emptyMap(),
             deviceZkSignedNamespaces = zkDocument.zkDocumentDataBytes.value.deviceSigned ?: emptyMap(),
             msoX5Chain = zkDocument.zkDocumentDataBytes.value.certificateChain.takeIf { !it.isNullOrEmpty() }
-                ?: credential.issuerSigned.issuerAuth.protectedHeader.certificateChain
-                    ?.takeIf { it.isNotEmpty() }
-                ?: credential.issuerSigned.issuerAuth.unprotectedHeader?.certificateChain
-                    ?.takeIf { it.isNotEmpty() }
         )
     }
 
@@ -211,7 +207,7 @@ private fun ZkSystemParamValue.matches(value: Any?): Boolean = when (this) {
 private suspend fun StoreEntry.Iso.discloseRequestedClaims(
     requestedClaims: Collection<NormalizedJsonPath>,
     request: PresentationRequestParameters,
-    signDeviceAuthDetached: SignCoseDetachedFun<ByteArray>
+    signDeviceAuthDetached: at.asitplus.wallet.lib.cbor.SignCoseDetachedFun<ByteArray>
 ): KmmResult<Document> = catching {
     // grouping by namespace and all requested claims for that namespace
     // TODO: Consider a check that we only have one namespace here because Longfellow-ZK currently only supports one Namespace (require or sth)
@@ -233,7 +229,11 @@ private suspend fun StoreEntry.Iso.discloseRequestedClaims(
     val deviceSignature = request.calcIsoDeviceSignaturePlain(input) ?: run {
         val sessionTranscript = request.calcIsoSessionTranscript()
             ?: throw PresentationException("calcIsoSessionTranscript not implemented")
-        calculateDeviceSignature(input, sessionTranscript, signDeviceAuthDetached)
+        calculateDeviceSignature(
+            input,
+            sessionTranscript,
+            signDeviceAuthDetached
+        )
     }
 
     Document(
@@ -278,7 +278,7 @@ private fun NormalizedJsonPath.firstTwoSegments() = segments.take(2)
 private suspend fun calculateDeviceSignature(
     input: IsoDeviceSignatureInput,
     sessionTranscript: SessionTranscript,
-    signDeviceAuthDetached: SignCoseDetachedFun<ByteArray>
+    signDeviceAuthDetached: at.asitplus.wallet.lib.cbor.SignCoseDetachedFun<ByteArray>
 ):  CoseSigned<ByteArray> {
     val deviceAuthentication = DeviceAuthentication(
         type = DeviceAuthentication.TYPE,

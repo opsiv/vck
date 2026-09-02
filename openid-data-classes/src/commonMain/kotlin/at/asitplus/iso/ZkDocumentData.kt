@@ -67,12 +67,12 @@ data class ZkDocumentData (
     }
 
     companion object {
-        const val PROP_CERT_CHAIN = "msoX5chain"
-        const val PROP_DOC_TYPE = "docType"
-        const val PROP_ZK_SYSTEM_ID = "zkSystemId"
-        const val PROP_TIME_STAMP = "timestamp"
-        const val PROP_ZK_ISSUER_SIGNED = "issuerSigned"
-        const val PROP_ZK_DEVICE_SIGNED = "deviceSigned"
+        internal const val PROP_CERT_CHAIN = "msoX5chain"
+        internal const val PROP_DOC_TYPE = "docType"
+        internal const val PROP_ZK_SYSTEM_ID = "zkSystemId"
+        internal const val PROP_TIME_STAMP = "timestamp"
+        internal const val PROP_ZK_ISSUER_SIGNED = "issuerSigned"
+        internal const val PROP_ZK_DEVICE_SIGNED = "deviceSigned"
 
     }
 }

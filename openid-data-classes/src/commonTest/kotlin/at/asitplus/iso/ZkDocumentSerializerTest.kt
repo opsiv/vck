@@ -295,9 +295,7 @@ private data class MockZkDocumentSingleCert(
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
-        if (other == null || this::class != other::class) return false
         if (other !is MockZkDocumentSingleCert) return false
-
         if (zkDocumentDataBytes != other.zkDocumentDataBytes) return false
         if (!proof.contentEquals(other.proof)) return false
 

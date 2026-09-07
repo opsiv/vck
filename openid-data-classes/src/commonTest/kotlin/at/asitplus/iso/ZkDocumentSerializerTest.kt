@@ -18,99 +18,95 @@ import io.kotest.matchers.equals.shouldBeEqual
 import io.kotest.matchers.ints.shouldBeGreaterThan
 import io.kotest.matchers.shouldBe
 import kotlinx.serialization.Contextual
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.cbor.ByteString
 import kotlinx.serialization.cbor.ValueTags
 import kotlinx.serialization.encodeToByteArray
+import kotlin.random.Random
 import kotlin.time.Clock
 import kotlin.time.Instant
 
-
-
 val ZkDocumentSerializationTest by matrixSuite {
     fixture {
+        // Define and register namespaces used for issuer- and deviceSigned (with predefined values).
+        // In production this should be done via import `LibraryInitializer` instead.
+        val namespacesWithValues = listOf(
+            uuid4().toString() to listOf<Triple<String, @Serializable Any, KSerializer<*>>>(
+                Triple(uuid4().toString(), uuid4().toString(), String.serializer()),
+                Triple(uuid4().toString(), Random.nextInt(0, 1001), Int.serializer()),
+                Triple(uuid4().toString(), Clock.System.now().truncateToSeconds(), Instant.serializer()),
+            ),
+            uuid4().toString() to listOf<Triple<String, @Serializable Any, KSerializer<*>>>(
+                Triple(uuid4().toString(), uuid4().toString(), String.serializer()),
+            ),
+            uuid4().toString() to listOf<Triple<String, @Serializable Any, KSerializer<*>>>(
+                Triple(uuid4().toString(), uuid4().toString(), String.serializer()),
+                Triple(uuid4().toString(), Random.nextDouble(0.0, 1337.327), Double.serializer()),
+            ),
+        )
+        namespacesWithValues.forEach { (namespace, elementIdentifiersAndValuesAndSerializers) ->
+            CborCredentialSerializer.register(
+                serializerMap = elementIdentifiersAndValuesAndSerializers.associate { (identifier, _, serializer) -> identifier to serializer },
+                isoNamespace = namespace
+            )
+        }
+
         object {
             val docType = uuid4().toString()
             val zkSystemId = uuid4().toString()
             val timestamp = Clock.System.now().truncateToSeconds()
-            val issuerSigned = mapOf(
-                uuid4().toString() to ZkSignedList(
-                    mutableListOf(
-                        ZkSignedItem(
-                            uuid4().toString(),
-                            uuid4().toString()
-                        ),
-                        ZkSignedItem(
-                            uuid4().toString(),
-                            uuid4().toString()
-                        ),
-                        ZkSignedItem(
-                            uuid4().toString(),
-                            uuid4().toString()
-                        )
-                    )
-                ),
-                uuid4().toString() to ZkSignedList(
-                    mutableListOf(
-                        ZkSignedItem(
-                            uuid4().toString(),
-                            uuid4().toString()
-                        )
-                    )
-                ),
-            )
-            val deviceSigned = mapOf(
-                uuid4().toString() to ZkSignedList(
-                    mutableListOf(
-                        ZkSignedItem(
-                            uuid4().toString(),
-                            uuid4().toString()
-                        ),
-                        ZkSignedItem(
-                            uuid4().toString(),
-                            uuid4().toString()
-                        )
-                    )
+            val issuerSigned = namespacesWithValues.take(2).associate {
+                val (namespace, elementIdentifiersAndSerializers) = it
+                namespace to ZkSignedList(
+                    elementIdentifiersAndSerializers.map { (identifier, value, serializer) ->
+                        ZkSignedItem(identifier, value)
+                    }
                 )
-            )
+            }
+            val deviceSigned = namespacesWithValues.takeLast(1).associate {
+                val (namespace, elementIdentifiersAndSerializers) = it
+                namespace to ZkSignedList(
+                    elementIdentifiersAndSerializers.map { (identifier, value, serializer) ->
+                        ZkSignedItem(identifier, value)
+                    }
+                )
+            }
             val proof = uuid4().toString().encodeToByteArray()
             val testCert1 = uuid4().toString().encodeToByteArray()
             val testCert2 = uuid4().toString().encodeToByteArray()
+
+            val baseZkDocumentData = ZkDocumentData(
+                docType = docType,
+                zkSystemId = zkSystemId,
+                timestamp = timestamp,
+                issuerSigned = issuerSigned,
+                deviceSigned = deviceSigned,
+            )
+
+            fun getZkDocumentWithCertChain(vararg certs: ByteArray): ZkDocument = ZkDocument(
+                zkDocumentDataBytes = ByteStringWrapper(
+                    baseZkDocumentData.copy(
+                        certificateChain = if (certs.isEmpty()) null else certs.toList()
+                    )
+                ),
+                proof = proof
+            )
+
+
         }
     } - {
         "End-to-end serialization and deserialization of ZkDocument" {
-            val zkDoc = ZkDocument(
-                ByteStringWrapper(
-                    ZkDocumentData(
-                        docType = it.docType,
-                        zkSystemId = it.zkSystemId,
-                        timestamp = it.timestamp,
-                        issuerSigned = it.issuerSigned,
-                        deviceSigned = it.deviceSigned,
-                    )
-                ),
-                proof = it.proof
-            )
-
+            val zkDoc = it.getZkDocumentWithCertChain(it.testCert1)
             val serialized = coseCompliantSerializer.encodeToByteArray(zkDoc)
             val deserialized = coseCompliantSerializer.decodeFromByteArray(ZkDocument.serializer(), serialized)
-
             zkDoc shouldBeEqual deserialized
         }
 
         "Serialization of ZkDocument with single cert according RFC9360" {
-            val zkDoc = ZkDocument(
-                proof = it.proof,
-                zkDocumentDataBytes = ByteStringWrapper(
-                    ZkDocumentData(
-                        docType = it.docType,
-                        zkSystemId = it.zkSystemId,
-                        timestamp = it.timestamp,
-                        certificateChain = listOf(it.testCert1)
-                    )
-                )
-            )
+            val zkDoc = it.getZkDocumentWithCertChain(it.testCert1)
             val expectedData = zkDoc.zkDocumentDataBytes.value
             val serialized = coseCompliantSerializer.encodeToByteArray(zkDoc)
 
@@ -143,17 +139,7 @@ val ZkDocumentSerializationTest by matrixSuite {
         }
 
         "Serialization of ZkDocument with multiple certs according RFC9360" {
-            val zkDoc = ZkDocument(
-                proof = it.proof,
-                zkDocumentDataBytes = ByteStringWrapper(
-                    ZkDocumentData(
-                        docType = it.docType,
-                        zkSystemId = it.zkSystemId,
-                        timestamp = it.timestamp,
-                        certificateChain = listOf(it.testCert1, it.testCert2)
-                    )
-                )
-            )
+            val zkDoc = it.getZkDocumentWithCertChain(it.testCert1, it.testCert2)
             val expectedData = zkDoc.zkDocumentDataBytes.value
             val serialized = coseCompliantSerializer.encodeToByteArray(zkDoc)
 
@@ -194,6 +180,8 @@ val ZkDocumentSerializationTest by matrixSuite {
                         docType = it.docType,
                         zkSystemId = it.zkSystemId,
                         timestamp = it.timestamp,
+                        issuerSigned = it.issuerSigned,
+                        deviceSigned = it.deviceSigned,
                         certificateChain = it.testCert1
                     )
                 )
@@ -232,6 +220,8 @@ val ZkDocumentSerializationTest by matrixSuite {
                         docType = it.docType,
                         zkSystemId = it.zkSystemId,
                         timestamp = it.timestamp,
+                        issuerSigned = it.issuerSigned,
+                        deviceSigned = it.deviceSigned,
                         certificateChain = listOf(it.testCert1, it.testCert2)
                     )
                 )
@@ -265,17 +255,7 @@ val ZkDocumentSerializationTest by matrixSuite {
         }
 
         "Serialization and deserialization of ZkDocument without cert" {
-            val zkDoc = ZkDocument(
-                proof = it.proof,
-                zkDocumentDataBytes = ByteStringWrapper(
-                    ZkDocumentData(
-                        docType = it.docType,
-                        zkSystemId = it.zkSystemId,
-                        timestamp = it.timestamp,
-                        certificateChain = null
-                    )
-                )
-            )
+            val zkDoc = it.getZkDocumentWithCertChain(/* No certificate */)
             val serialized = coseCompliantSerializer.encodeToByteArray(zkDoc)
             val deserializedDefault = coseCompliantSerializer.decodeFromByteArray(ZkDocument.serializer(), serialized)
             deserializedDefault shouldBeEqual zkDoc

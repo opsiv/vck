@@ -18,6 +18,6 @@ class ZkSignedListSerializer(private val namespace: String) : KSerializer<ZkSign
     }
 
     override fun deserialize(decoder: Decoder): ZkSignedList {
-        return ZkSignedList(decoder.decodeSerializableValue(delegate).toMutableList())
+        return ZkSignedList(decoder.decodeSerializableValue(delegate).toList())
     }
 }

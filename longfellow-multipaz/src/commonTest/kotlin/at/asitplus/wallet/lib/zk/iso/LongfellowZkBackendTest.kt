@@ -26,7 +26,14 @@ import at.asitplus.openid.OidcUserInfoExtended
 import at.asitplus.testballoon.matrix.fixture
 import at.asitplus.testballoon.matrix.matrixSuite
 import at.asitplus.wallet.eupid.EU_PID_DOCTYPE
+import at.asitplus.wallet.eupid.EU_PID_METADATA_URL
 import at.asitplus.wallet.eupid.EuPidDataElements
+import at.asitplus.wallet.eupid.EuPidItemValueSerializerMap
+import at.asitplus.wallet.eupid.EuPidJsonValueEncoder
+import at.asitplus.wallet.eupid.EuPidMetadataDocument
+import at.asitplus.wallet.eupidsdjwt.EU_PID_SD_JWT_METADATA_URL
+import at.asitplus.wallet.eupidsdjwt.EuPidSdJwtMetadataDocument
+import at.asitplus.wallet.lib.LibraryInitializer
 import at.asitplus.wallet.lib.agent.CreatePresentationResult
 import at.asitplus.wallet.lib.agent.CredentialToBeIssued
 import at.asitplus.wallet.lib.agent.EphemeralKeyWithSelfSignedCert
@@ -41,7 +48,13 @@ import at.asitplus.wallet.lib.data.AttributeIndex
 import at.asitplus.wallet.lib.data.ConstantIndex.CredentialRepresentation.ISO_MDOC
 import at.asitplus.wallet.lib.data.CredentialPresentationRequest
 import at.asitplus.wallet.lib.data.IsoMdocCredentialScheme
+import at.asitplus.wallet.lib.data.StaticCredentialMetadataRegistry
 import at.asitplus.wallet.lib.data.rfc3986.toUri
+import at.asitplus.wallet.mdl.MDL_METADATA_URL
+import at.asitplus.wallet.mdl.MobileDrivingLicenceItemValueSerializerMap
+import at.asitplus.wallet.mdl.MobileDrivingLicenceJsonValueEncoder
+import at.asitplus.wallet.mdl.MobileDrivingLicenceMetadataDocument
+import at.asitplus.wallet.sdjwt.SdJwtTypeMetadataDocumentRegistry
 import com.benasher44.uuid.uuid4
 import io.github.z4kn4fein.semver.Version
 import io.kotest.matchers.collections.shouldBeSingleton
@@ -49,6 +62,7 @@ import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.builtins.serializer
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.minutes
 
@@ -59,6 +73,25 @@ private const val SINGLE_ATTRIBUTE_CIRCUIT_HASH =
 
 val SampleTest by matrixSuite {
     fixture {
+        LibraryInitializer.registerCredentialMetadataRegistry(
+            StaticCredentialMetadataRegistry(
+                documentRegistry = SdJwtTypeMetadataDocumentRegistry(
+                    EuPidMetadataDocument,
+                ),
+                documentUrls = mapOf(
+                    EuPidMetadataDocument.first to EU_PID_METADATA_URL,
+                )
+            )
+        )
+
+        LibraryInitializer.registerCredentialSerializers(
+            jsonValueEncoder = EuPidJsonValueEncoder,
+            itemValueSerializerMap = EuPidItemValueSerializerMap + mapOf(
+                EU_PID_DOCTYPE to ((EuPidItemValueSerializerMap[EU_PID_DOCTYPE] ?: emptyMap()) +
+                        (EuPidDataElements.GIVEN_NAME to String.serializer()))
+            ),
+        )
+
         runBlocking {
             val holderKey = EphemeralKeyWithoutCert()
             val backendRegistry = IsoMdocZkBackendRegistry()
@@ -89,7 +122,7 @@ val SampleTest by matrixSuite {
                 DCQLQuery(
                     credentials = DCQLCredentialQueryList(nonEmptyListOf(
                         DCQLIsoMdocZkCredentialQuery(
-                            id = DCQLCredentialQueryIdentifier("eu-pid-zk"),
+                            id = DCQLCredentialQueryIdentifier(uuid4().toString()),
                             meta = DCQLIsoMdocZkCredentialMetadataAndValidityConstraints(
                                 doctypeValue = EU_PID_DOCTYPE,
                                 zkSystemType = zkSystemType,

@@ -28,8 +28,8 @@ kotlin {
         commonMain {
             dependencies {
                 api(project(":vck"))
-                implementation("org.multipaz:multipaz:0.100.0-SNAPSHOT")
-                implementation("org.multipaz:multipaz-longfellow:0.100.0-SNAPSHOT")
+                implementation("org.multipaz:multipaz:0.101.0-SNAPSHOT")
+                implementation("org.multipaz:multipaz-longfellow:0.101.0-SNAPSHOT")
                 commonImplementationAndApiDependencies()
             }
         }

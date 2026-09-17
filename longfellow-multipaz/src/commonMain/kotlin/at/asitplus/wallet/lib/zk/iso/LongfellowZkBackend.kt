@@ -149,7 +149,7 @@ class LongfellowZkBackend : IsoMdocZkBackend {
         val zkDocument = multipazZkDocument.toZkDocument()
         IsoMdocZkProof(
             zkDocument = zkDocument,
-            verifyFn = createVerifyFn(selectedZkSystemSpec, sessionTranscript),
+            verifyFn = createVerifyFn( selectedZkSystemSpec, sessionTranscript, zkDocument),
         )
 
     }
@@ -164,17 +164,18 @@ class LongfellowZkBackend : IsoMdocZkBackend {
         }
         IsoMdocZkProof(
             zkDocument = zkDocument,
-            verifyFn = createVerifyFn(zkSystemSpec, sessionTranscript),
+            verifyFn = createVerifyFn(zkSystemSpec, sessionTranscript, zkDocument),
         )
     }
 
     private fun createVerifyFn(
         zkSystemSpec: ZkSystemSpec,
         sessionTranscript: SessionTranscript,
-    ): suspend (ZkDocument) -> KmmResult<Unit> = {
+        zkDocument: ZkDocument
+    ): suspend () -> KmmResult<Unit> = {
         catching {
             backend.verifyProof(
-                zkDocument = it.toMultipazZkDocument(),
+                zkDocument = zkDocument.toMultipazZkDocument(),
                 zkSystemSpec = zkSystemSpec.toMultipazZkSystemSpec(),
                 sessionTranscript = sessionTranscript.toMultipazSessionTranscript(),
             )

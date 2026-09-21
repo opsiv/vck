@@ -6,7 +6,6 @@ import at.asitplus.iso.SessionTranscript
 import at.asitplus.iso.ZkDocument
 import at.asitplus.iso.ZkSystemSpec
 import at.asitplus.jsonpath.core.NormalizedJsonPath
-import at.asitplus.jsonpath.core.NormalizedJsonPathSegment
 import at.asitplus.openid.truncateToSeconds
 import at.asitplus.wallet.lib.agent.KeyMaterial
 import at.asitplus.wallet.lib.agent.PresentationRequestParameters
@@ -15,68 +14,30 @@ import at.asitplus.wallet.lib.cbor.CoseHeaderNone
 import at.asitplus.wallet.lib.cbor.SignCoseDetached
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.builtins.serializer
-import org.multipaz.mdoc.zkp.ZkSystemParamValue
 import org.multipaz.mdoc.zkp.ZkSystemSpec as MultipazZkSystemSpec
 import org.multipaz.mdoc.zkp.longfellow.LongfellowZkSystem
-import org.multipaz.request.MdocRequestedClaim
 import kotlin.ByteArray
 import kotlin.time.Clock
+
 class LongfellowZkBackend : IsoMdocZkBackend {
-    private lateinit var backend: LongfellowZkSystem
-    private val zkSystemsMap: Map<ZkSystemSpec, MultipazZkSystemSpec> get() =
-        backend.systemSpecs.associateBy { it.toZkSystemSpec() }
 
-    private fun MultipazZkSystemSpec.toZkSystemSpec() = ZkSystemSpec(
-        id = id,
-        system = system,
-        params = params.entries.associate { (key, paramValue) ->
-            key to when (paramValue) {
-                is ZkSystemParamValue.BooleanValue -> paramValue.value
-                is ZkSystemParamValue.StringValue -> paramValue.value
-                is ZkSystemParamValue.DoubleValue -> paramValue.value
-                is ZkSystemParamValue.LongValue -> paramValue.value
-            }
-        }
-    )
-
-    private fun ZkSystemSpec.toMultipazZkSystemSpec(): MultipazZkSystemSpec = MultipazZkSystemSpec(id, system).also { spec ->
-        params.forEach { (key, value) ->
-            when (value) {
-                is String -> spec.addParam(key, value)
-                is Int -> spec.addParam(key, value.toLong())
-                is Long -> spec.addParam(key, value)
-                is Double -> spec.addParam(key, value)
-                is Boolean -> spec.addParam(key, value)
-                else -> throw IllegalArgumentException(
-                    "Cannot convert to Multipaz ZkSystemSpec due to unsupported parameter value type: " +
-                            "${value::class.simpleName ?: value::class} for key '$key'"
-                )
-            }
-        }
+    private class InitializedState(val backend: LongfellowZkSystem) {
+        val zkSystemsMap: Map<ZkSystemSpec, MultipazZkSystemSpec> =
+            backend.systemSpecs.associateBy { it.toZkSystemSpec() }
+        val zkSystemSpecs: List<ZkSystemSpec> =
+            zkSystemsMap.keys.toList()
     }
 
+    private var state: InitializedState? = null
 
-    private fun NormalizedJsonPath.toMdocRequestedClaim(
-        docType: String,
-    ): MdocRequestedClaim {
-        require(segments.size == 2 && segments.all { it is NormalizedJsonPathSegment.NameSegment }) {
-            "Expected an mdoc claim path with a namespace and data element: $this"
-        }
+    private val currentState: InitializedState
+        get() = checkNotNull(state) { "LongfellowZkBackend is not initialized. Call initialize() first." }
 
-        val (namespaceName, dataElementName) = segments
-            .map { (it as NormalizedJsonPathSegment.NameSegment).memberName }
+    override val zkSystemSpecs: List<ZkSystemSpec>
+        get() = currentState.zkSystemSpecs
 
-        return MdocRequestedClaim(
-            docType = docType,
-            namespaceName = namespaceName,
-            dataElementName = dataElementName,
-            intentToRetain = false, // TODO: Consider using the actual value instead of a place holder "false"
-        )
-    }
-
-    override val zkSystemSpecs:  List<ZkSystemSpec> get() = zkSystemsMap.keys.toList()
-
-    override val system: String get() = backend.name
+    override val system: String
+        get() = currentState.backend.name
 
     override val paramSerializers: Map<String, KSerializer<*>> = mapOf(
         "version" to Long.serializer(),
@@ -86,12 +47,10 @@ class LongfellowZkBackend : IsoMdocZkBackend {
         "block_enc_sig" to Long.serializer(),
     )
 
-    override fun supports(candidate: ZkSystemSpec): Boolean {
-        return zkSystemSpecs.any { supportedSpec ->
-            supportedSpec.system == candidate.system
-                    && candidate.params["circuit_hash"] != null
-                    && candidate.params["circuit_hash"] == supportedSpec.params["circuit_hash"]
-        }
+    override fun supports(candidate: ZkSystemSpec): Boolean = zkSystemSpecs.any { supportedSpec ->
+        supportedSpec.system == candidate.system &&
+                candidate.params["circuit_hash"] != null &&
+                candidate.params["circuit_hash"] == supportedSpec.params["circuit_hash"]
     }
 
     private fun chooseZkSystemSpec(
@@ -103,32 +62,30 @@ class LongfellowZkBackend : IsoMdocZkBackend {
             it.toMdocRequestedClaim(credential.schemeIdentifier)
         }
         val multipazZkSystemSpecs = zkSystemSpecs
-            .filter { this.supports(it) }
+            .filter { supports(it) }
             .map { it.toMultipazZkSystemSpec() }
-        val matchingSupportedSpec = backend.getMatchingSystemSpec(multipazZkSystemSpecs, multipazRequestedClaims)
 
-        return matchingSupportedSpec?.let { spec ->
+        return currentState.backend.getMatchingSystemSpec(multipazZkSystemSpecs, multipazRequestedClaims)?.let { spec ->
             val id = multipazZkSystemSpecs.first { it.params["circuit_hash"] == spec.params["circuit_hash"] }.id
             spec.copyWithParameters(id = id)
         }
-
     }
 
     override suspend fun generate(
         request: PresentationRequestParameters,
         credential: StoreEntry.Iso,
         requestedClaims: Collection<NormalizedJsonPath>,
-        zkSystemSpecs: List<ZkSystemSpec>,
+        requestedZkSystemSpecs: List<ZkSystemSpec>,
         keyMaterial: KeyMaterial
     ): KmmResult<IsoMdocZkProof> = catching {
         val sessionTranscript = requireNotNull(request.calcIsoSessionTranscript()) {
             "calcIsoSessionTranscript not implemented"
         }
-        val multipazSessionTranscript = sessionTranscript.toMultipazSessionTranscript()
-        val selectedMultipazZkSystemSpec = requireNotNull(chooseZkSystemSpec(credential, requestedClaims, zkSystemSpecs)) {
-            IllegalStateException("No matching ZK system spec found")
-        }
+        val selectedMultipazZkSystemSpec = requireNotNull(
+            chooseZkSystemSpec(credential, requestedClaims, requestedZkSystemSpecs)
+        ) { "No matching ZK system spec found" }
         val selectedZkSystemSpec = selectedMultipazZkSystemSpec.toZkSystemSpec()
+
         val signDeviceAuthDetached = SignCoseDetached<ByteArray>(
             keyMaterial = keyMaterial,
             protectedHeaderModifier = CoseHeaderNone(),
@@ -137,21 +94,18 @@ class LongfellowZkBackend : IsoMdocZkBackend {
         val plainMultipazDocument = credential
             .discloseRequestedClaims(requestedClaims, sessionTranscript, signDeviceAuthDetached)
             .toMultipazDocument()
-        val timestamp = Clock.System.now().truncateToSeconds()
 
-        val multipazZkDocument = backend.generateProof(
+        val zkDocument = currentState.backend.generateProof(
             zkSystemSpec = selectedMultipazZkSystemSpec,
             document = plainMultipazDocument,
-            sessionTranscript = multipazSessionTranscript,
-            timestamp = timestamp,
-        )
+            sessionTranscript = sessionTranscript.toMultipazSessionTranscript(),
+            timestamp = Clock.System.now().truncateToSeconds(),
+        ).toZkDocument()
 
-        val zkDocument = multipazZkDocument.toZkDocument()
         IsoMdocZkProof(
             zkDocument = zkDocument,
-            verifyFn = createVerifyFn( selectedZkSystemSpec, sessionTranscript, zkDocument),
+            verifyFn = createVerifyFn(selectedZkSystemSpec, sessionTranscript, zkDocument),
         )
-
     }
 
     override fun load(
@@ -174,7 +128,7 @@ class LongfellowZkBackend : IsoMdocZkBackend {
         zkDocument: ZkDocument
     ): suspend () -> KmmResult<Unit> = {
         catching {
-            backend.verifyProof(
+            currentState.backend.verifyProof(
                 zkDocument = zkDocument.toMultipazZkDocument(),
                 zkSystemSpec = zkSystemSpec.toMultipazZkSystemSpec(),
                 sessionTranscript = sessionTranscript.toMultipazSessionTranscript(),
@@ -182,8 +136,9 @@ class LongfellowZkBackend : IsoMdocZkBackend {
         }
     }
 
-
     override suspend fun initialize(): KmmResult<Unit> = catching {
-        backend = LongfellowZkSystem().also { it.addDefaultCircuits() }
+        state = InitializedState(
+            backend = LongfellowZkSystem().also { it.addDefaultCircuits() }
+        )
     }
 }

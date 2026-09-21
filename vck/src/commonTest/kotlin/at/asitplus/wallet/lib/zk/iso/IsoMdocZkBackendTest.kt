@@ -177,6 +177,7 @@ private object MockIsoMdocZkBackend: IsoMdocZkBackend {
     )
 
     override val paramSerializers: Map<String, KSerializer<*>> = emptyMap()
+    override fun supports(candidate: ZkSystemSpec) = candidate.system == system
 
     private val mockProof = Random.nextBytes(25)
 
@@ -225,7 +226,7 @@ private object MockIsoMdocZkBackend: IsoMdocZkBackend {
             )
         )
 
-        IsoMdocZkProof(zkDocument, generateVerify())
+        IsoMdocZkProof(zkDocument, generateVerify(zkDocument))
     }
 
     override fun load(
@@ -233,12 +234,12 @@ private object MockIsoMdocZkBackend: IsoMdocZkBackend {
         sessionTranscript: SessionTranscript,
         zkSystemSpec: ZkSystemSpec
     ): KmmResult<IsoMdocZkProof> = catching {
-        IsoMdocZkProof(zkDocument, generateVerify())
+        IsoMdocZkProof(zkDocument, generateVerify(zkDocument))
     }
 
-    private fun generateVerify(): (ZkDocument) -> KmmResult<Unit> = {
+    private fun generateVerify(zkDocument: ZkDocument): () -> KmmResult<Unit> = {
         catching {
-            if (!it.proof.contentEquals(mockProof)) {
+            if (!zkDocument.proof.contentEquals(mockProof)) {
                 throw IllegalArgumentException("Invalid proof bytes in Mock Backend")
             }
         }

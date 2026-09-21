@@ -9,6 +9,7 @@ import at.asitplus.iso.IssuerSigned
 import at.asitplus.iso.IssuerSignedItem
 import at.asitplus.iso.SessionTranscript
 import at.asitplus.iso.ZkDocument
+import at.asitplus.iso.ZkSystemSpec
 import at.asitplus.iso.wrapInCborTag
 import at.asitplus.jsonpath.core.NormalizedJsonPath
 import at.asitplus.jsonpath.core.NormalizedJsonPathSegment
@@ -26,6 +27,7 @@ import org.multipaz.cbor.Cbor
 import org.multipaz.cbor.DataItem
 import org.multipaz.mdoc.response.MdocDocument
 import org.multipaz.mdoc.zkp.ZkSystemParamValue
+import org.multipaz.request.MdocRequestedClaim
 import org.multipaz.mdoc.zkp.ZkSystemSpec as MultipazZkSystemSpec
 import org.multipaz.mdoc.zkp.ZkDocument as MultipazZkDocument
 
@@ -152,3 +154,49 @@ private fun NormalizedJsonPath.toIsoNamespaceAttribute() = with(firstTwoSegments
 private fun NormalizedJsonPath.firstTwoSegments() = segments.take(2)
     .filterIsInstance<NormalizedJsonPathSegment.NameSegment>()
 
+internal fun MultipazZkSystemSpec.toZkSystemSpec() = ZkSystemSpec(
+    id = id,
+    system = system,
+    params = params.entries.associate { (key, paramValue) ->
+        key to when (paramValue) {
+            is ZkSystemParamValue.BooleanValue -> paramValue.value
+            is ZkSystemParamValue.StringValue -> paramValue.value
+            is ZkSystemParamValue.DoubleValue -> paramValue.value
+            is ZkSystemParamValue.LongValue -> paramValue.value
+        }
+    }
+)
+
+internal fun ZkSystemSpec.toMultipazZkSystemSpec(): MultipazZkSystemSpec = MultipazZkSystemSpec(id, system).also { spec ->
+    params.forEach { (key, value) ->
+        when (value) {
+            is String -> spec.addParam(key, value)
+            is Int -> spec.addParam(key, value.toLong())
+            is Long -> spec.addParam(key, value)
+            is Double -> spec.addParam(key, value)
+            is Boolean -> spec.addParam(key, value)
+            else -> throw IllegalArgumentException(
+                "Cannot convert to Multipaz ZkSystemSpec due to unsupported parameter value type: " +
+                        "${value::class.simpleName ?: value::class} for key '$key'"
+            )
+        }
+    }
+}
+
+internal fun NormalizedJsonPath.toMdocRequestedClaim(
+    docType: String,
+): MdocRequestedClaim {
+    require(segments.size == 2 && segments.all { it is NormalizedJsonPathSegment.NameSegment }) {
+        "Expected an mdoc claim path with a namespace and data element: $this"
+    }
+
+    val (namespaceName, dataElementName) = segments
+        .map { (it as NormalizedJsonPathSegment.NameSegment).memberName }
+
+    return MdocRequestedClaim(
+        docType = docType,
+        namespaceName = namespaceName,
+        dataElementName = dataElementName,
+        intentToRetain = false, // TODO: Consider using the actual value instead of a place holder "false"
+    )
+}

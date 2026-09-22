@@ -12,46 +12,93 @@ import at.asitplus.wallet.lib.agent.PresentationRequestParameters
 import at.asitplus.wallet.lib.agent.SubjectCredentialStore.StoreEntry
 import at.asitplus.wallet.lib.cbor.CoseHeaderNone
 import at.asitplus.wallet.lib.cbor.SignCoseDetached
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.builtins.serializer
 import org.multipaz.mdoc.zkp.ZkSystemSpec as MultipazZkSystemSpec
 import org.multipaz.mdoc.zkp.longfellow.LongfellowZkSystem
 import kotlin.ByteArray
+import kotlin.concurrent.Volatile
 import kotlin.time.Clock
 
+/**
+ * An [IsoMdocZkBackend] implementation backed by the Longfellow-ZK zero-knowledge system
+ * (via the Multipaz library).
+ *
+ * This class handles proof generation and verification for ISO/IEC 18013-5 mdoc credentials
+ * using Longfellow-ZK circuits. It bridges internal domain models ([ZkSystemSpec], [ZkDocument],
+ * [SessionTranscript]) to and from Multipaz-native data structures.
+ *
+ * **Lifecycle:**
+ * Before invoking operations that rely on backend capabilities (e.g., [supports], [generate], [load]),
+ * the backend MUST be initialized by calling [initialize].
+ */
 class LongfellowZkBackend : IsoMdocZkBackend {
 
-    private class InitializedState(val backend: LongfellowZkSystem) {
-        val zkSystemsMap: Map<ZkSystemSpec, MultipazZkSystemSpec> =
-            backend.systemSpecs.associateBy { it.toZkSystemSpec() }
-        val zkSystemSpecs: List<ZkSystemSpec> =
-            zkSystemsMap.keys.toList()
+    private class InitializedState(
+        val backend: LongfellowZkSystem
+    ) {
+        val zkSystemSpecs: List<ZkSystemSpec> = backend.systemSpecs.map { it.toZkSystemSpec() }
+        val supportedHashes: Set<String> = zkSystemSpecs.mapNotNull { it.params[CIRCUIT_HASH_KEY] as? String }.toSet()
     }
 
+    private val initMutex = Mutex()
+    @Volatile
     private var state: InitializedState? = null
 
     private val currentState: InitializedState
         get() = checkNotNull(state) { "LongfellowZkBackend is not initialized. Call initialize() first." }
 
+    private fun createVerifyFn(
+        zkSystemSpec: ZkSystemSpec,
+        sessionTranscript: SessionTranscript,
+        zkDocument: ZkDocument
+    ): suspend () -> KmmResult<Unit> = {
+        catching {
+            currentState.backend.verifyProof(
+                zkDocument = zkDocument.toMultipazZkDocument(),
+                zkSystemSpec = zkSystemSpec.toMultipazZkSystemSpec(),
+                sessionTranscript = sessionTranscript.toMultipazSessionTranscript(),
+            )
+        }
+    }
+
+    /**
+     * The list of zero-knowledge system specifications available in this backend.
+     *
+     * @throws IllegalStateException if [initialize] has not been called.
+     */
     override val zkSystemSpecs: List<ZkSystemSpec>
         get() = currentState.zkSystemSpecs
 
+    /**
+     * The identifier string of the underlying zero-knowledge engine (e.g., `"longfellow-libzk-v1"`).
+     *
+     * @throws IllegalStateException if [initialize] has not been called.
+     */
     override val system: String
         get() = currentState.backend.name
 
-    override val paramSerializers: Map<String, KSerializer<*>> = mapOf(
-        "version" to Long.serializer(),
-        "circuit_hash" to String.serializer(),
-        "num_attributes" to Long.serializer(),
-        "block_enc_hash" to Long.serializer(),
-        "block_enc_sig" to Long.serializer(),
-    )
+    /**
+     * Maps parameter key names to their expected kotlinx [KSerializer] instances
+     * for serializing and deserializing zero-knowledge system specifications.
+     */
+    override val paramSerializers: Map<String, KSerializer<*>>
+        get() = PARAM_SERIALIZERS
 
-    override fun supports(candidate: ZkSystemSpec): Boolean = zkSystemSpecs.any { supportedSpec ->
-        supportedSpec.system == candidate.system &&
-                candidate.params["circuit_hash"] != null &&
-                candidate.params["circuit_hash"] == supportedSpec.params["circuit_hash"]
-    }
+    /**
+     * Determines whether the given [candidate] specification is supported by this backend.
+     *
+     * Support requires matching the backend [system] name and a known `circuit_hash`.
+     * Other parameters (e.g., `num_attributes`) are ignored during lookup.
+     *
+     * @param candidate The [ZkSystemSpec] to evaluate for support.
+     * @return `true` if supported; `false` otherwise.
+     * @throws IllegalStateException if [initialize] has not been called.
+     */
+    override fun supports(candidate: ZkSystemSpec): Boolean =
+        candidate.system == system && candidate.params[CIRCUIT_HASH_KEY] in currentState.supportedHashes
 
     private fun chooseZkSystemSpec(
         credential: StoreEntry.Iso,
@@ -62,15 +109,29 @@ class LongfellowZkBackend : IsoMdocZkBackend {
             it.toMdocRequestedClaim(credential.schemeIdentifier)
         }
         val multipazZkSystemSpecs = zkSystemSpecs
-            .filter { supports(it) }
+            .filter(::supports)
             .map { it.toMultipazZkSystemSpec() }
 
-        return currentState.backend.getMatchingSystemSpec(multipazZkSystemSpecs, multipazRequestedClaims)?.let { spec ->
-            val id = multipazZkSystemSpecs.first { it.params["circuit_hash"] == spec.params["circuit_hash"] }.id
-            spec.copyWithParameters(id = id)
-        }
+        val matchedSpec = currentState.backend.getMatchingSystemSpec(multipazZkSystemSpecs, multipazRequestedClaims)
+            ?: return null
+
+        val matchedHash = matchedSpec.params[CIRCUIT_HASH_KEY]
+        val id = multipazZkSystemSpecs.firstOrNull { it.params[CIRCUIT_HASH_KEY] == matchedHash }?.id
+            ?: error("Backend matched spec returned an unknown $CIRCUIT_HASH_KEY: $matchedHash")
+        return matchedSpec.copyWithParameters(id = id)
     }
 
+    /**
+     * Generates a zero-knowledge proof for a given credential and requested claim paths.
+     *
+     * @param request Presentation request parameters containing session context.
+     * @param credential The ISO mdoc credential store entry containing attributes to disclose.
+     * @param requestedClaims The set of normalized JSON paths representing requested claims.
+     * @param requestedZkSystemSpecs Acceptable ZK system specifications requested by the verifier.
+     * @param keyMaterial The key material used for signing device authentication in the mDoc context.
+     * @return A [KmmResult] wrapping the generated [IsoMdocZkProof].
+     * @throws IllegalStateException if [initialize] has not been called.
+     */
     override suspend fun generate(
         request: PresentationRequestParameters,
         credential: StoreEntry.Iso,
@@ -108,13 +169,23 @@ class LongfellowZkBackend : IsoMdocZkBackend {
         )
     }
 
+    /**
+     * Constructs an [IsoMdocZkProof] handle from an existing [ZkDocument] for verification.
+     *
+     * @param zkDocument The received ISO mdoc ZkDocument.
+     * @param sessionTranscript The ISO mdoc session transcript.
+     * @param zkSystemSpec The specification matching the circuit used to generate the proof.
+     * @return A [KmmResult] wrapping the executable [IsoMdocZkProof].
+     * @throws IllegalArgumentException if [zkSystemSpec] is not supported by this backend.
+     * @throws IllegalStateException if [initialize] has not been called.
+     */
     override fun load(
         zkDocument: ZkDocument,
         sessionTranscript: SessionTranscript,
         zkSystemSpec: ZkSystemSpec
     ): KmmResult<IsoMdocZkProof> = catching {
         require(supports(zkSystemSpec)) {
-            "LongfellowZkBackend does not support spec: ${zkSystemSpec.id}"
+            "LongfellowZkBackend cannot load this document, because it does not support spec: ${zkSystemSpec.id}"
         }
         IsoMdocZkProof(
             zkDocument = zkDocument,
@@ -122,23 +193,39 @@ class LongfellowZkBackend : IsoMdocZkBackend {
         )
     }
 
-    private fun createVerifyFn(
-        zkSystemSpec: ZkSystemSpec,
-        sessionTranscript: SessionTranscript,
-        zkDocument: ZkDocument
-    ): suspend () -> KmmResult<Unit> = {
-        catching {
-            currentState.backend.verifyProof(
-                zkDocument = zkDocument.toMultipazZkDocument(),
-                zkSystemSpec = zkSystemSpec.toMultipazZkSystemSpec(),
-                sessionTranscript = sessionTranscript.toMultipazSessionTranscript(),
-            )
+    /**
+     * Initializes the Longfellow-ZK backend engine safely across coroutines.
+     * Loads default circuits into memory. If already initialized, this operation is a no-op.
+     *
+     * @return A [KmmResult] wrapping [Unit] on success, or an exception on failure.
+     */
+    override suspend fun initialize(): KmmResult<Unit> = catching {
+        if (state != null) return@catching
+
+        initMutex.withLock {
+            if (state == null) {
+                state = InitializedState(
+                    backend = LongfellowZkSystem().also { it.addDefaultCircuits() }
+                )
+            }
         }
     }
 
-    override suspend fun initialize(): KmmResult<Unit> = catching {
-        state = InitializedState(
-            backend = LongfellowZkSystem().also { it.addDefaultCircuits() }
+    companion object {
+
+        private const val VERSION_KEY = "version"
+        private const val CIRCUIT_HASH_KEY = "circuit_hash"
+        private const val NUM_ATTRIBUTES_KEY = "num_attributes"
+        private const val BLOCK_ENC_HASH_KEY = "block_enc_hash"
+        private const val BLOCK_ENC_SIG_KEY = "block_enc_sig"
+
+        private val PARAM_SERIALIZERS: Map<String, KSerializer<*>> = mapOf(
+            VERSION_KEY to Long.serializer(),
+            CIRCUIT_HASH_KEY to String.serializer(),
+            NUM_ATTRIBUTES_KEY to Long.serializer(),
+            BLOCK_ENC_HASH_KEY to Long.serializer(),
+            BLOCK_ENC_SIG_KEY to Long.serializer(),
         )
+
     }
 }

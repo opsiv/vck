@@ -10,6 +10,7 @@ import at.asitplus.iso.ItemsRequestList
 import at.asitplus.iso.SessionTranscript
 import at.asitplus.iso.SingleItemsRequest
 import at.asitplus.iso.ZkRequest
+import at.asitplus.iso.ZkSystemSpec
 import at.asitplus.signum.indispensable.cosef.io.ByteStringWrapper
 import at.asitplus.openid.dcql.DCQLClaimsPathPointer
 import at.asitplus.openid.dcql.DCQLClaimsQueryList
@@ -52,10 +53,15 @@ import at.asitplus.wallet.lib.data.rfc3986.toUri
 import at.asitplus.wallet.sdjwt.SdJwtTypeMetadataDocumentRegistry
 import com.benasher44.uuid.uuid4
 import io.github.z4kn4fein.semver.Version
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.collections.shouldBeSingleton
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.builtins.serializer
 import kotlin.time.Clock
@@ -235,6 +241,63 @@ val SampleTest by matrixSuite {
             ).getOrThrow().shouldBeInstanceOf<PresentationResponseParameters.DeviceRetrievalParameters>()
 
             assertZkDeviceResponse(response.deviceResponse, it.givenName, it.zkEngine, sessionTranscript, it.zkRequest)
+        }
+
+        test("uninitialized ZkSystem throws IllegalStateException on use") {
+            val backend = LongfellowZkBackend()
+
+            shouldThrow<IllegalStateException> {
+                backend.zkSystemSpecs
+            }
+
+            shouldThrow<IllegalStateException> {
+                backend.system
+            }
+
+            val dummySpec = ZkSystemSpec(
+                id = uuid4().toString(),
+                system = uuid4().toString(),
+                params = emptyMap()
+            )
+            shouldThrow<IllegalStateException> {
+                backend.supports(dummySpec)
+            }
+        }
+
+        test("concurrent and repeat initialization is safe and thread-safe") {
+            val backend = LongfellowZkBackend()
+            val jobRange = (1..50)
+
+            coroutineScope {
+                // Launch concurrent initialization calls alongside readers on multi-threaded dispatcher
+                val initJobs = jobRange.map {
+                    async(Dispatchers.Default) {
+                        backend.initialize()
+                    }
+                }
+
+                val readerJobs = jobRange.map {
+                    async(Dispatchers.Default) {
+                        // Wait for any init to complete then verify memory visibility across background workers
+                        initJobs.first().await()
+                        backend.zkSystemSpecs.isNotEmpty() && backend.system.isNotEmpty()
+                    }
+                }
+
+                val initResults = initJobs.awaitAll()
+                val readerResults = readerJobs.awaitAll()
+
+                initResults.all { it.isSuccess } shouldBe true
+                readerResults.all { it } shouldBe true
+            }
+        }
+
+        test("LongfellowZkBackend supports all self-advertised ZkSystemSpecs") {
+            val backend = LongfellowZkBackend()
+            backend.initialize().getOrThrow()
+            backend.zkSystemSpecs.forEach {
+                backend.supports(it) shouldBe true
+            }
         }
     }
 }
